@@ -8,21 +8,20 @@ Distribution objects follow the PyTorch Distributions (https://pytorch.org/docs/
 Layer objects follow the design principles of the TensorFlow Probability Layers package (https://www.tensorflow.org/probability/api_docs/python/tfp/layers)
 
 
-
 ## Examples
 
 To train an mnist classifier:
 
 ```
 digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_categorical.Categorical())
-train.LayerTrainer(digit_recognizer.to(ns.device), train_dataset)
+train.LayerTrainer(digit_recognizer.to(ns.device), train_dataset).train()
 ```
 
 To train an mnist PixelCNN:
 
 ```
 digit_distribution = pixelcnn.PixelCNNBernoulliDistribution(event_shape=[1, 28, 28])
-train.DistributionTrainer(digit_distribution.to(ns.device), train_dataset)
+train.DistributionTrainer(digit_distribution.to(ns.device), train_dataset).train()
 ```
 
 ## Layers
@@ -50,6 +49,11 @@ digit_recognizer = DigitRecognizer()
 ```
 The use of layer_categorical.Categorical() in the first approach is purely for convenience, either can be passed into a LayerTrainer. It is your personal preference as to which to use.
 
+## Trainers
+
+There are two trainers: train.DistributionTrainer, train.LayerTrainer
+
+They both expect a dataset of tuples. The DistributionTrainer optimizes the distribution where the 1st element is the target. The LayerTrainer assumes the 1st element is the variable to be condition on (eg the image in the case of the MNIST dataset) and the 2nd element is the target distribution (eg the label in the case of the MNIST dataset).
 
 ## Resources
 
