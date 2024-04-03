@@ -60,6 +60,9 @@ They both expect a dataset of tuples. The DistributionTrainer optimizes the dist
 The design principles behind Distributions and Layers can be quite subtle, particularly with respect to getting the shapes correct.
 So here are some resources:
 
+PyTorch Distribution:
+(https://pytorch.org/docs/stable/distributions.html)
+
 For distribution shapes:
 (https://www.tensorflow.org/probability/examples/Understanding_TensorFlow_Distributions_Shapes)
 
@@ -69,3 +72,8 @@ https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoul
 An example of Tensorflow Probability Layer IndependentBernoulli:
 (https://www.tensorflow.org/probability/api_docs/python/tfp/layers/IndependentBernoulli)
 
+A discussion of PyTorch Probability Distribution shapes:
+(https://bochang.me/blog/posts/pytorch-distributions/)
+
+A general discussion on probability distribution shapes:
+(https://ericmjl.github.io/blog/2019/5/29/reasoning-about-shapes-and-probability-distributions/)
