@@ -6,7 +6,7 @@ class UnitIntervalBucket():
     def __init__(self, logits):
         self.logits = logits
         self.num_buckets = self.logits.shape[-1]
-        self.event_shape = []
+        self.event_shape = torch.Size([])
         self.batch_shape = self.logits.shape[:-1]
 
     def log_prob(self, x):
