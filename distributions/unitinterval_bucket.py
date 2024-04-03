@@ -2,7 +2,7 @@ from torch.distributions.categorical import Categorical
 import torch
 
 
-class UnitIntervalBucket():
+class UnitIntervalBucket:
     def __init__(self, logits):
         self.logits = logits
         self.num_buckets = self.logits.shape[-1]
