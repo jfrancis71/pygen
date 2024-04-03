@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from PyGenBrix.distributions.unitinterval_bucket import UnitIntervalBucket
+from pygen.distributions.unitinterval_bucket import UnitIntervalBucket
 import pixelcnn_pp.model as pixelcnn_model
 
 
