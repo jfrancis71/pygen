@@ -24,6 +24,16 @@ digit_distribution = pixelcnn.PixelCNNBernoulliDistribution(event_shape=[1, 28, 
 train.DistributionTrainer(digit_distribution.to(ns.device), train_dataset).train()
 ```
 
+Full code examples:
+
+./examples/mnist_classifier.py: Classic MNIST classifier
+
+./examples/cifar10_classifier.py: Classic CIFAR10 classifier
+
+./examples/mnist_pixelcnn.py: Generative MNIST model based on PixelCNN
+
+./examples/cifar10_pixelcnn.py: Generative CIFAR10 model based on PixelCNN
+
 ## Layers
 
 Layer objects can be thought of as representing conditional probability distributions. This could have been implemented as log_prob(y, x) representing p(x|y), but is instead implemented as a function which returns a probability distribution. The advantage is this distribution can now be passed to any method expecting a probability distribution, whereas in the former case it would require a new parallel interface to be developed.
@@ -61,13 +71,22 @@ Install PyTorch (https://pytorch.org/get-started/locally/)
 
 There is no package install currently setup, so you need to set PYTHONPATH to point to root of the repository, eg:
 
-```export PYTHONPATH=~/github_repos```
+```
+git clone https://github.com/jfrancis71/pygen.git
+export PYTHONPATH=~/github_repos
+```
 
 To run the mnist classifier:
 
 ```python ./examples/mnist_classifier.py --datasets_folder=~/DataSets/ --tb_folder=./logs --device="cuda"```
 
 where the datasets_folder option points to where you would like to store the MNIST dataset download.
+
+The PixelCNN examples use the following repo:
+```
+git clone https://github.com/jfrancis71/pixel-cnn-pp.git
+```
+This is a modified fork of https://github.com/pclucas14/pixel-cnn-pp. The modifications were made to support different types of probability distributions.
 
 ## Resources
 
