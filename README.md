@@ -55,6 +55,20 @@ There are two trainers: train.DistributionTrainer, train.LayerTrainer
 
 They both expect a dataset of tuples. The DistributionTrainer optimizes the distribution where the 1st element is the target. The LayerTrainer assumes the 1st element is the variable to be condition on (eg the image in the case of the MNIST dataset) and the 2nd element is the target distribution (eg the label in the case of the MNIST dataset).
 
+## Installation and Setup
+
+Install PyTorch (https://pytorch.org/get-started/locally/)
+
+There is no package install currently setup, so you need to set PYTHONPATH to point to root of the repository, eg:
+
+```export PYTHONPATH=~/github_repos```
+
+To run the mnist classifier:
+
+```python ./examples/mnist_classifier.py --datasets_folder=~/DataSets/ --tb_folder=./logs --device="cuda"```
+
+where the datasets_folder option points to where you would like to store the MNIST dataset download.
+
 ## Resources
 
 The design principles behind Distributions and Layers can be quite subtle, particularly with respect to getting the shapes correct.
