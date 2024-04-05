@@ -85,6 +85,7 @@ where the datasets_folder option points to where you would like to store the MNI
 The PixelCNN examples use the following repo:
 ```
 git clone https://github.com/jfrancis71/pixel-cnn-pp.git
+mv pixel-cnn-pp pixelcnn_pp
 ```
 This is a modified fork of https://github.com/pclucas14/pixel-cnn-pp. The modifications were made to support different types of probability distributions.
 
