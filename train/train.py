@@ -1,20 +1,31 @@
 import torch
+import torch.optim.lr_scheduler
+import math
+
+
+# Robbins Monro, Ref 1:
+rm_scheduler_fn = lambda epoch: 1 / math.sqrt(1 + epoch)
 
 
 class _Trainer():
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None):
+    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False):
         self.trainable = trainable
         self.dataset = dataset
         self.batch_size = batch_size
         self.max_epoch = max_epoch
         self.batch_end_callback = batch_end_callback
         self.epoch_end_callback = epoch_end_callback
+        self.use_scheduler = use_scheduler
 
     def train(self):
         self.device = next(self.trainable.parameters()).device
         dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
                                              drop_last=True)
         opt = torch.optim.Adam(self.trainable.parameters(), lr=.001)
+        if self.use_scheduler:
+            scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler_fn)
+        else:
+            scheduler = None
         self.batch_num = 0
         for self.epoch in range(self.max_epoch):
             print("Epoch: ", self.epoch)
@@ -34,6 +45,8 @@ class _Trainer():
                     self.batch_end_callback(self)
             if self.epoch_end_callback is not None:
                 self.epoch_end_callback(self)
+            if scheduler:
+                scheduler.step()
 
     def log_prob(self, batch):
         raise("Unimplemented, Abstract Base Class")
@@ -41,9 +54,9 @@ class _Trainer():
 
 class DistributionTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None):
+                 epoch_end_callback=None, use_scheduler=False):
         super(DistributionTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                                           epoch_end_callback)
+                                           epoch_end_callback, use_scheduler=set_scheduler)
 
     def log_prob(self, batch):
         return self.trainable.log_prob(batch[0].to(self.device))
@@ -51,9 +64,12 @@ class DistributionTrainer(_Trainer):
 
 class LayerTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None):
+                 epoch_end_callback=None, use_scheduler=False):
         super(LayerTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                 epoch_end_callback)
+                 epoch_end_callback, use_scheduler=use_scheduler)
 
     def log_prob(self, batch):
         return self.trainable(batch[0].to(self.device)).log_prob(batch[1].to(self.device))
+
+
+# Ref 1: "What is an adaptive step size in parameter estimation", youtube, ian explains signals, systems and digital comms, June 20, 2022
