@@ -111,3 +111,6 @@ A discussion of PyTorch Probability Distribution shapes:
 
 A general discussion on probability distribution shapes:
 (https://ericmjl.github.io/blog/2019/5/29/reasoning-about-shapes-and-probability-distributions/)
+
+Chanseok Kang notes, focussing on Tensorflow Probability Layers:
+(https://goodboychan.github.io/python/coursera/tensorflow_probability/icl/2021/08/23/01-Probabilistic-layers.html)
