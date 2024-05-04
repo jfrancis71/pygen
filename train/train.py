@@ -56,7 +56,7 @@ class DistributionTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
                  epoch_end_callback=None, use_scheduler=False):
         super(DistributionTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                                           epoch_end_callback, use_scheduler=set_scheduler)
+                                           epoch_end_callback, use_scheduler=use_scheduler)
 
     def log_prob(self, batch):
         return self.trainable.log_prob(batch[0].to(self.device))
