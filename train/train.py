@@ -8,7 +8,7 @@ rm_scheduler_fn = lambda epoch: 1 / math.sqrt(1 + epoch)
 
 
 class _Trainer():
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False):
+    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False, dummy_run=False):
         self.trainable = trainable
         self.dataset = dataset
         self.batch_size = batch_size
@@ -16,10 +16,15 @@ class _Trainer():
         self.batch_end_callback = batch_end_callback
         self.epoch_end_callback = epoch_end_callback
         self.use_scheduler = use_scheduler
+        self.dummy_run = dummy_run
 
     def train(self):
         self.device = next(self.trainable.parameters()).device
-        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
+        if self.dummy_run:
+            dataset = torch.utils.data.Subset(self.dataset, range(self.batch_size))
+        else:
+           dataset = self.dataset
+        dataloader = torch.utils.data.DataLoader(dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
                                              drop_last=True)
         opt = torch.optim.Adam(self.trainable.parameters(), lr=.001)
         if self.use_scheduler:

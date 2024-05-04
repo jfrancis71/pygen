@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-from pygen.distributions.unitinterval_bucket import UnitIntervalBucket
 import pixelcnn_pp.model as pixelcnn_model
 import pygen.layers.independent_bernoulli as bernoulli_layer
-import pygen.layers.independent_unitinterval_bucket as unitinterval_bucket_layer
+import pygen.layers.independent_quantized_distribution as ql
 
 
 class _PixelCNN(nn.Module):
@@ -47,6 +46,6 @@ class PixelCNNBernoulliDistribution(_PixelCNN):
         super().__init__(event_shape, bernoulli_layer.IndependentBernoulli(event_shape=event_shape[:1]), nr_resnet=nr_resnet)
 
 
-class PixelCNNUnitIntervalBucketDistribution(_PixelCNN):
+class PixelCNNQuantizedDistribution(_PixelCNN):
     def __init__(self, event_shape, nr_resnet=3):
-        super().__init__(event_shape, unitinterval_bucket_layer.IndependentUnitIntervalBucket(event_shape=event_shape[:1]), nr_resnet=nr_resnet)
+        super().__init__(event_shape, ql.IndependentQuantizedDistribution(event_shape=event_shape[:1]), nr_resnet=nr_resnet)
