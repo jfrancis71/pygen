@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser(description='PyGen MNIST PixelCNN')
 parser.add_argument("--datasets_folder", default=".")
 parser.add_argument("--tb_folder", default=None)
 parser.add_argument("--device", default="cpu")
+parser.add_argument("--dummy_run", action="store_true")
 ns = parser.parse_args()
 
 transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(), lambda x: (x > 0.5).float()])
@@ -26,4 +27,4 @@ train.DistributionTrainer(
     digit_distribution.to(ns.device),
     train_dataset,
     batch_end_callback=callbacks.TBBatchLogProbCallback(tb_writer, "batch_log_prob"),
-    epoch_end_callback=epoch_end_callback).train()
+    epoch_end_callback=epoch_end_callback, dummy_run=ns.dummy_run).train()

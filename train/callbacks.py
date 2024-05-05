@@ -81,15 +81,6 @@ class TBBatchLogProbCallback():
         self.tb_writer.add_scalar(self.tb_name, trainer.log_prob_item, trainer.batch_num)
 
 
-class TBBatchLogProbCallback():
-    def __init__(self, tb_writer, tb_name):
-        self.tb_writer = tb_writer
-        self.tb_name = tb_name
-
-    def __call__(self, trainer):
-        self.tb_writer.add_scalar(self.tb_name, trainer.log_prob_item, trainer.batch_num)
-
-
 class TBTotalLogProbCallback():
     def __init__(self, tb_writer, tb_name):
         self.tb_writer = tb_writer
@@ -99,7 +90,7 @@ class TBTotalLogProbCallback():
         self.tb_writer.add_scalar(self.tb_name, trainer.total_log_prob/trainer.batch_len, trainer.epoch)
 
 
-class TBDatasetLogProbDistributionCallback():
+class _TBDatasetLogProbCallback():
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -112,9 +103,29 @@ class TBDatasetLogProbDistributionCallback():
         log_prob = 0.0
         size = 0
         for (_, batch) in enumerate(dataloader):
-            log_prob += (trainer.trainable.log_prob(batch[0].to(trainer.device)).mean()).item()
+            log_prob += self.batch_log_prob(trainer, batch)
             size += 1
         self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
+
+
+class TBDatasetLogProbDistributionCallback(_TBDatasetLogProbCallback):
+    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
+        super().__init__(tb_writer, tb_name, dataset, batch_size)
+
+    def batch_log_prob(self, trainer, batch):
+        return (trainer.trainable.log_prob(batch[0].to(trainer.device)).mean()).item()
+
+
+class TBDatasetLogProbLayerCallback(_TBDatasetLogProbCallback):
+    def __init__(self, tb_writer, tb_name, dataset, batch_size=32, reverse_inputs=False):
+        super().__init__(tb_writer, tb_name, dataset, batch_size)
+        self.reverse_inputs = reverse_inputs
+
+    def batch_log_prob(self, trainer, batch):
+        if not self.reverse_inputs:
+            return (trainer.trainable(batch[0].to(trainer.device)).log_prob(batch[1].to(trainer.device)).mean()).item()
+        else:
+            return (trainer.trainable(batch[1].to(trainer.device)).log_prob(batch[0].to(trainer.device)).mean()).item()
 
 
 class TBAccuracyCallback():
