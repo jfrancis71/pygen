@@ -38,7 +38,7 @@ class _Trainer():
             self.batch_len = 0
             for (_, batch) in enumerate(dataloader):
                 self.trainable.zero_grad()
-                log_prob = torch.mean(self.log_prob(batch))
+                log_prob = torch.mean(self.batch_log_prob(batch))
                 loss = -log_prob
                 loss.backward()
                 opt.step()
@@ -63,7 +63,7 @@ class DistributionTrainer(_Trainer):
         super(DistributionTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
                                            epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run)
 
-    def log_prob(self, batch):
+    def batch_log_prob(self, batch):
         return self.trainable.log_prob(batch[0].to(self.device))
 
 
@@ -74,7 +74,7 @@ class LayerTrainer(_Trainer):
                  epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run)
         self.reverse_inputs = reverse_inputs
 
-    def log_prob(self, batch):
+    def batch_log_prob(self, batch):
         if not self.reverse_inputs:
             return self.trainable(batch[0].to(self.device)).log_prob(batch[1].to(self.device))
         else:
