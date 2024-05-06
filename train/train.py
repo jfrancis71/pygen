@@ -8,7 +8,7 @@ rm_scheduler_fn = lambda epoch: 1 / math.sqrt(1 + epoch)
 
 
 class _Trainer():
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False, dummy_run=False):
+    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None):
         self.trainable = trainable
         self.dataset = dataset
         self.batch_size = batch_size
@@ -17,6 +17,7 @@ class _Trainer():
         self.epoch_end_callback = epoch_end_callback
         self.use_scheduler = use_scheduler
         self.dummy_run = dummy_run
+        self.model_path = model_path
 
     def train(self):
         self.device = next(self.trainable.parameters()).device
@@ -50,6 +51,8 @@ class _Trainer():
                     self.batch_end_callback(self)
             if self.epoch_end_callback is not None:
                 self.epoch_end_callback(self)
+            if self.model_path is not None:
+                torch.save(self.trainable.state_dict(), self.model_path)
             if scheduler:
                 scheduler.step()
 
@@ -59,9 +62,9 @@ class _Trainer():
 
 class DistributionTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None, use_scheduler=False, dummy_run=False):
+                 epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None):
         super(DistributionTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                                           epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run)
+                                           epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run, model_path=model_path)
 
     def batch_log_prob(self, batch):
         return self.trainable.log_prob(batch[0].to(self.device))
@@ -69,9 +72,9 @@ class DistributionTrainer(_Trainer):
 
 class LayerTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None, use_scheduler=False, dummy_run=False, reverse_inputs=False):
+                 epoch_end_callback=None, use_scheduler=False, dummy_run=False, reverse_inputs=False, model_path=None):
         super(LayerTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                 epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run)
+                 epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run, model_path=model_path)
         self.reverse_inputs = reverse_inputs
 
     def batch_log_prob(self, batch):
