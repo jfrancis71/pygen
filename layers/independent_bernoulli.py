@@ -11,5 +11,7 @@ class IndependentBernoulli(torch.nn.Module):
         return math.prod(self.event_shape)
 
     def forward(self, logits):
-        base_distribution = torch.distributions.bernoulli.Bernoulli(logits=logits)
+        batch_shape = list(logits.shape[:-1])
+        reshape_logits = logits.reshape(batch_shape + self.event_shape)
+        base_distribution = torch.distributions.bernoulli.Bernoulli(logits=reshape_logits)
         return torch.distributions.independent.Independent(base_distribution, reinterpreted_batch_ndims=len(self.event_shape))

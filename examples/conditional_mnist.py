@@ -12,7 +12,7 @@ import pygen.layers.independent_bernoulli as bernoulli_layer
 class ConditionalDigitDistribution(nn.Module):
     def __init__(self):
         super().__init__()
-        self.logits = nn.Parameter(torch.zeros([10, 1, 28, 28], requires_grad=True))
+        self.logits = nn.Parameter(torch.zeros([10, 1*28*28], requires_grad=True))
         self.layer = bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28])
 
     def forward(self, x):
