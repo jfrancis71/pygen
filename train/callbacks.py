@@ -66,7 +66,7 @@ class TBConditionalImagesCallback():
 
     def __call__(self, trainer):
         batch_size = 2
-        imglist = [trainer.trainable(label_idx).sample([batch_size]) for label_idx in range(10)]
+        imglist = [trainer.trainable(torch.tensor(label_idx, device=trainer.device)).sample([batch_size]) for label_idx in range(10)]
         imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)
         grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=2)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
