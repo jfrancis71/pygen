@@ -8,7 +8,9 @@ rm_scheduler_fn = lambda epoch: 1 / math.sqrt(1 + epoch)
 
 
 class _Trainer():
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None, epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None):
+    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10,
+            batch_end_callback=None, epoch_end_callback=None, use_scheduler=False,
+            dummy_run=False, model_path=None):
         self.trainable = trainable
         self.dataset = dataset
         self.batch_size = batch_size
@@ -24,8 +26,9 @@ class _Trainer():
         if self.dummy_run:
             dataset = torch.utils.data.Subset(self.dataset, range(self.batch_size))
         else:
-           dataset = self.dataset
-        dataloader = torch.utils.data.DataLoader(dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
+            dataset = self.dataset
+        dataloader = torch.utils.data.DataLoader(dataset, collate_fn=None,
+            batch_size=self.batch_size, shuffle=True,
                                              drop_last=True)
         opt = torch.optim.Adam(self.trainable.parameters(), lr=.001)
         if self.use_scheduler:
@@ -57,14 +60,16 @@ class _Trainer():
                 scheduler.step()
 
     def log_prob(self, batch):
-        raise("Unimplemented, Abstract Base Class")
+        raise "Unimplemented, Abstract Base Class"
 
 
 class DistributionTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
                  epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None):
-        super(DistributionTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                                           epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run, model_path=model_path)
+        super(DistributionTrainer, self).__init__(
+            trainable, dataset, batch_size, max_epoch, batch_end_callback,
+            epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run,
+            model_path=model_path)
 
     def batch_log_prob(self, batch):
         return self.trainable.log_prob(batch[0].to(self.device))
@@ -72,9 +77,11 @@ class DistributionTrainer(_Trainer):
 
 class LayerTrainer(_Trainer):
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None, use_scheduler=False, dummy_run=False, reverse_inputs=False, model_path=None):
-        super(LayerTrainer, self).__init__(trainable, dataset, batch_size, max_epoch, batch_end_callback,
-                 epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run, model_path=model_path)
+                 epoch_end_callback=None, use_scheduler=False, dummy_run=False,
+                 reverse_inputs=False, model_path=None):
+        super(LayerTrainer, self).__init__(trainable, dataset, batch_size, max_epoch,
+            batch_end_callback, epoch_end_callback, use_scheduler=use_scheduler,
+            dummy_run=dummy_run, model_path=model_path)
         self.reverse_inputs = reverse_inputs
 
     def batch_log_prob(self, batch):
@@ -84,4 +91,5 @@ class LayerTrainer(_Trainer):
             return self.trainable(batch[1].to(self.device)).log_prob(batch[0].to(self.device))
 
 
-# Ref 1: "What is an adaptive step size in parameter estimation", youtube, ian explains signals, systems and digital comms, June 20, 2022
+# Ref 1: "What is an adaptive step size in parameter estimation", youtube,
+#     ian explains signals, systems and digital comms, June 20, 2022
