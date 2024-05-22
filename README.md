@@ -41,7 +41,8 @@ These ideas come from the TensorFlow Probability package.
 
 The MNIST classifier example above was built by:
 ```
-digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_categorical.Categorical())
+digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True),
+    layer_categorical.Categorical())
 ```
 but it could also have been built as:
 ```
