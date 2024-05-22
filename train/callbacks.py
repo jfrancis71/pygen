@@ -1,10 +1,21 @@
+"""
+callbacks is a module defining functors which can be passed to a Trainer
+to monitor Training session.
+Callbacks are generally implemented as functors so they can be configured, eg
+the tensorboard writer, or the name of tensorboard string to log with.
+"""
+
+
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
 
-def image_grid(images, labels):
-    """Return a 5x5 grid of images with labels."""
+
+def labelled_images_grid(images, labels):
+    """images is a list or tensor of 25 images, labels is a list of 25 text objects.
+       returns a tensor which represents these images and labels organised into a 5x5 grid.
+    """
     plt.figure(figsize=(10,10))
     for i in range(25):
         # Start next subplot.
@@ -22,17 +33,24 @@ def image_grid(images, labels):
                 image = images[i].permute(1,2,0)
                 cmap = None
             else:
-                raise("Unknown image with channels", num_channels)
+                raise ValueError(f"Unknow image type with num_channels={num_channels}")
         plt.imshow(image, cmap=cmap)
     canvas = plt.gca().figure.canvas
     canvas.draw()
     data = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
     width, height = canvas.get_width_height()
-    data = np.array(data).reshape(height, width, 4)
+    data = np.array(data).reshape(height, width, 4)  # pylint: disable=E1121
     return data[:, :, :3].transpose(2, 0, 1)
 
 
 class TBClassifyImagesCallback():
+    """You initialise with the dataset eg validation_dataset and the class labels (in text string)
+       for the dataset, ie the mappings from the numerical Categorical index to the text string.
+       It returns 5x5 image grid with labelling using the trainable object.
+       Suitable for trainables that are Layer objects mapping from images to a
+       Categorical distribution.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name, dataset, class_labels):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -40,13 +58,19 @@ class TBClassifyImagesCallback():
         self.class_labels = class_labels
 
     def __call__(self, trainer):
-        images = torch.stack([self.dataset[i][0].to(trainer.device) for i in range(25)])
-        labels = [self.class_labels[idx.to("cpu").item()] for idx in trainer.trainable(images).sample()]
-        labelled_images = image_grid(images.to("cpu"), labels)
+        images = torch.stack([self.dataset[i][0].to(trainer.device) for i in range(25)])  # pylint: disable=E1101
+        labels = [self.class_labels[idx.to("cpu").item()]
+            for idx in trainer.trainable(images).sample()]
+        labelled_images = labelled_images_grid(images.to("cpu"), labels)
         self.tb_writer.add_image(self.tb_name, labelled_images, trainer.epoch)
 
 
 class TBImagesCallback():
+    """Creates a 4x4 grid of images using the trainable.
+       Suitable for trainables that are distributions where the probability distribution
+       is over images.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -54,12 +78,20 @@ class TBImagesCallback():
     def __call__(self, trainer):
         batch_size = 16
         imglist = [trainer.trainable.sample([batch_size]) for _ in range(16 // batch_size)]
-        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)
+        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
         grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=4)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
 class TBConditionalImagesCallback():
+    """Produces a 10x2 grid of images where each row is an image generated conditioned on
+       the corresponding class label, and there are two examples per row.
+       Suitable for trainables that are Layer objects accepting a tensor integer label
+       and returning a probability distribution over an image.
+       eg a trainable accepting tensor value 2, returning 1x28x28 probability distributions
+       over digit 2.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -67,12 +99,17 @@ class TBConditionalImagesCallback():
     def __call__(self, trainer):
         batch_size = 2
         imglist = [trainer.trainable(label_idx).sample([batch_size]) for label_idx in range(10)]
-        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)
+        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
         grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=2)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
 class TBBatchLogProbCallback():
+    """Logs the batch log_prob.
+       As it applies to the trainer, not the trainable, it is applicable to either
+       Layer or Distribution trainables.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -82,15 +119,25 @@ class TBBatchLogProbCallback():
 
 
 class TBTotalLogProbCallback():
+    """Logs the total log_prob for the epoch.
+       As it applies to the trainer, not the trainable, it is applicable to either
+       Layer or Distribution trainables.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
 
     def __call__(self, trainer):
-        self.tb_writer.add_scalar(self.tb_name, trainer.total_log_prob/trainer.batch_len, trainer.epoch)
+        self.tb_writer.add_scalar(self.tb_name,
+            trainer.total_log_prob/trainer.batch_len, trainer.epoch)
 
 
 class _TBDatasetLogProbCallback():
+    """An internal class for computing the log_prob over a dataset, presumably validation_dataset.
+       It should not be used directly, but is subclassed for the Distribution and Layer
+       trainables respectively.
+    """
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -98,8 +145,8 @@ class _TBDatasetLogProbCallback():
         self.dataset = dataset
 
     def __call__(self, trainer):
-        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
-                                             drop_last=True)
+        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None,
+            batch_size=self.batch_size, shuffle=True, drop_last=True)
         log_prob = 0.0
         size = 0
         for (_, batch) in enumerate(dataloader):
@@ -107,28 +154,42 @@ class _TBDatasetLogProbCallback():
             size += 1
         self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
 
+    # pylint: disable=C0116
+    def batch_log_prob(self, trainer, batch):
+        raise NotImplementedError("Unimplemented, Abstract Base Class")
+
 
 class TBDatasetLogProbDistributionCallback(_TBDatasetLogProbCallback):
-    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
-        super().__init__(tb_writer, tb_name, dataset, batch_size)
-
+    """Logs the log_prob for Distribution trainables over a dataset, presumbly validation_dataset.
+    """
+    # pylint: disable=R0903
     def batch_log_prob(self, trainer, batch):
         return (trainer.trainable.log_prob(batch[0].to(trainer.device)).mean()).item()
 
 
 class TBDatasetLogProbLayerCallback(_TBDatasetLogProbCallback):
+    """Logs the log_prob for Layer trainables over a dataset, presumbly validation_dataset.
+    """
+    # pylint: disable=R0903
+    # pylint: disable=R0913
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32, reverse_inputs=False):
         super().__init__(tb_writer, tb_name, dataset, batch_size)
         self.reverse_inputs = reverse_inputs
 
     def batch_log_prob(self, trainer, batch):
         if not self.reverse_inputs:
-            return (trainer.trainable(batch[0].to(trainer.device)).log_prob(batch[1].to(trainer.device)).mean()).item()
-        else:
-            return (trainer.trainable(batch[1].to(trainer.device)).log_prob(batch[0].to(trainer.device)).mean()).item()
+            return (trainer.trainable(batch[0].to(trainer.device)). \
+                log_prob(batch[1].to(trainer.device)).mean()).item()
+        return (trainer.trainable(batch[1].to(trainer.device)). \
+            log_prob(batch[0].to(trainer.device)).mean()).item()
 
 
 class TBAccuracyCallback():
+    """This is for classification trainables, ie Layer trainables which return
+       a Categorical distribution, and returns percentage accuracy over
+       a dataset, presumably validation_dataset.
+    """
+    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -136,18 +197,22 @@ class TBAccuracyCallback():
         self.dataset = dataset
 
     def __call__(self, trainer):
-        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None, batch_size=self.batch_size, shuffle=True,
-                                             drop_last=True)
+        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None,
+            batch_size=self.batch_size, shuffle=True, drop_last=True)
         correct = 0.0
         size = 0
         for (_, batch) in enumerate(dataloader):
-            correct += (trainer.trainable(batch[0].to(trainer.device)).sample().cpu()==batch[1]).sum().item()
+            correct += (trainer.trainable(batch[0].to(trainer.device)).sample().cpu() \
+                ==batch[1]).sum().item()
             size += self.batch_size
         self.tb_writer.add_scalar(self.tb_name, correct/size, trainer.epoch)
 
 
 def callback_compose(list_callbacks):
+    """Strings a list of callbacks into one callback so you can have multiple callbacks
+       for eg an epoch end callback.
+    """
     def call_callbacks(trainer):
-        for fn in list_callbacks:
-            fn(trainer)
+        for func in list_callbacks:
+            func(trainer)
     return call_callbacks
