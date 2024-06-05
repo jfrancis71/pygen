@@ -41,7 +41,8 @@ These ideas come from the TensorFlow Probability package.
 
 The MNIST classifier example above was built by:
 ```
-digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_categorical.Categorical())
+digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True),
+    layer_categorical.Categorical())
 ```
 but it could also have been built as:
 ```
@@ -58,6 +59,8 @@ class DigitRecognizer(nn.Module):
 digit_recognizer = DigitRecognizer()
 ```
 The use of layer_categorical.Categorical() in the first approach is purely for convenience, either can be passed into a LayerTrainer. It is your personal preference as to which to use.
+
+Take special care when using Layers in spatial tensors, i.e. tensors of form BxYxXxC. Layers, as in Tensorflow interpret the last tensor component as the parameters of the distribution. This is fine for a layer such as BxC and will work the same way in both frameworks. But note the Tensorflow format for spatial layers is BxYxXxC where layers would interpret the C components as the parameters of a probability distribution with batch shape BxYxX. Whereas the PyTorch format is BxCxYxX which you will probably want to permute to BxYxXxC. If you leave it as BxCxYxX then X will be treated as the distribution parameters with batch shape BxCxY which is probably not what you want.
 
 ## Trainers
 

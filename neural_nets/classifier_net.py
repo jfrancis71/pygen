@@ -1,13 +1,17 @@
+"""Defines ClassifierNet, a simple net for classifying MNIST or CIFAR10"""
+
+
 import torch
-import torch.nn as nn
+from torch import nn
 import torch.nn.functional as F
 
 
 class ClassifierNet(nn.Module):
-    """Simple Classifier Neural Net, can be configured to accept MNIST (1x28x28) or CIFAR10 (3x32x32) tensors"""
+    """Simple Classifier Neural Net, can be configured to accept MNIST (1x28x28) or
+       CIFAR10 (3x32x32) tensors. Outputs log softmax'd tensor of shape [10]"""
     def __init__(self, mnist):
         super().__init__()
-        if mnist == True:
+        if mnist:
             in_channels = 1
             mid_channels = 9216
         else:
@@ -18,13 +22,14 @@ class ClassifierNet(nn.Module):
         self.fc1 = nn.Linear(mid_channels, 128)
         self.fc2 = nn.Linear(128, 10)
 
+    # pylint: disable=C0103,C0116
     def forward(self, x):
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
         x = F.relu(x)
         x = F.max_pool2d(x, 2)
-        x = torch.flatten(x, 1)
+        x = torch.flatten(x, 1)  # pylint: disable=E1101
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
