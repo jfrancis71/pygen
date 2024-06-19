@@ -33,8 +33,7 @@ epoch_end_callbacks = callbacks.callback_compose([
     callbacks.TBDatasetLogProbLayerCallback(tb_writer, "validation_log_prob", validation_dataset),
     callbacks.TBAccuracyCallback(tb_writer, "train_accuracy", train_dataset),
     callbacks.TBAccuracyCallback(tb_writer, "validation_accuracy", validation_dataset)])
-digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True),
-    layer_categorical.Categorical())
+digit_recognizer = classifier_net.ClassifierNet(mnist=True)
 train.LayerTrainer(digit_recognizer.to(ns.device), train_dataset,
     batch_end_callback=callbacks.TBBatchLogProbCallback(tb_writer, "batch_log_prob"),
     epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run).train()

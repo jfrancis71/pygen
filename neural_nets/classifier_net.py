@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 class ClassifierNet(nn.Module):
     """Simple Classifier Neural Net, can be configured to accept MNIST (1x28x28) or
-       CIFAR10 (3x32x32) tensors. Outputs log softmax'd tensor of shape [10]"""
+       CIFAR10 (3x32x32) tensors. Outputs categorical distribution over 10 states."""
     def __init__(self, mnist):
         super().__init__()
         if mnist:
@@ -33,5 +33,5 @@ class ClassifierNet(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        output = F.log_softmax(x, dim=1)
-        return output
+        distribution = torch.distributions.categorical.Categorical(logits=x)
+        return distribution
