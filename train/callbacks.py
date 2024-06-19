@@ -92,13 +92,14 @@ class TBConditionalImagesCallback():
        over digit 2.
     """
     # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name):
+    def __init__(self, tb_writer, tb_name, num_labels):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
+        self.num_labels = num_labels
 
     def __call__(self, trainer):
         sample_size = 2
-        imglist = [trainer.trainable(torch.tensor(label_idx, device=trainer.device)).sample([sample_size]) for label_idx in range(10)]
+        imglist = [trainer.trainable(torch.tensor(label_idx, device=trainer.device)).sample([sample_size]) for label_idx in range(self.num_labels)]
         imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
         grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=2)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
