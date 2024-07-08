@@ -9,7 +9,7 @@ import torch.nn.functional as F
 class ClassifierNet(nn.Module):
     """Simple Classifier Neural Net, can be configured to accept MNIST (1x28x28) or
        CIFAR10 (3x32x32) tensors. Outputs categorical distribution over 10 states."""
-    def __init__(self, mnist):
+    def __init__(self, mnist, num_classes=10):
         super().__init__()
         if mnist:
             in_channels = 1
@@ -20,7 +20,7 @@ class ClassifierNet(nn.Module):
         self.conv1 = nn.Conv2d(in_channels, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.fc1 = nn.Linear(mid_channels, 128)
-        self.fc2 = nn.Linear(128, 10)
+        self.fc2 = nn.Linear(128, num_classes)
 
     # pylint: disable=C0103,C0116
     def forward(self, x):
