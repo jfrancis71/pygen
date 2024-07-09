@@ -15,7 +15,7 @@ class IndependentBernoulli(torch.nn.Module):
     def __init__(self, event_shape):
         super().__init__()
         if not isinstance(event_shape, list):
-            raise RuntimeError("event_shape is {}, but was expecting a list.".format(event_shape))
+            raise RuntimeError(f"event_shape is {event_shape}, but was expecting a list.")
         self.event_shape = event_shape
 
     def params_size(self):
