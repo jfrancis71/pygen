@@ -86,9 +86,9 @@ class TBImagesCallback():
 class TBConditionalImagesCallback():
     """Produces a 10x2 grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
-       Suitable for trainables that are Layer objects accepting a tensor integer label
+       Suitable for trainables that are Layer objects accepting a one got vector
        and returning a probability distribution over an image.
-       eg a trainable accepting tensor value 2, returning 1x28x28 probability distributions
+       eg a trainable accepting one hot vector with position 2 = 1, returning 1x28x28 probability distributions
        over digit 2.
     """
     # pylint: disable=R0903
@@ -99,7 +99,8 @@ class TBConditionalImagesCallback():
 
     def __call__(self, trainer):
         sample_size = 2
-        imglist = [trainer.trainable(torch.tensor(label_idx, device=trainer.device)).sample([sample_size]) for label_idx in range(self.num_labels)]
+        imglist = [trainer.trainable(
+            torch.nn.functional.one_hot(torch.tensor(label_idx, device=trainer.device), self.num_labels).float()).sample([sample_size]) for label_idx in range(self.num_labels)]
         imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
         grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=2)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
@@ -171,18 +172,9 @@ class TBDatasetLogProbDistributionCallback(_TBDatasetLogProbCallback):
 class TBDatasetLogProbLayerCallback(_TBDatasetLogProbCallback):
     """Logs the log_prob for Layer trainables over a dataset, presumbly validation_dataset.
     """
-    # pylint: disable=R0903
-    # pylint: disable=R0913
-    def __init__(self, tb_writer, tb_name, dataset, batch_size=32, reverse_inputs=False):
-        super().__init__(tb_writer, tb_name, dataset, batch_size)
-        self.reverse_inputs = reverse_inputs
-
     def batch_log_prob(self, trainer, batch):
-        if not self.reverse_inputs:
-            return (trainer.trainable(batch[0].to(trainer.device)). \
-                log_prob(batch[1].to(trainer.device)).mean()).item()
-        return (trainer.trainable(batch[1].to(trainer.device)). \
-            log_prob(batch[0].to(trainer.device)).mean()).item()
+        return trainer.batch_log_prob(batch).mean().item()
+
 
 
 class TBAccuracyCallback():

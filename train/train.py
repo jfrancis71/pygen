@@ -122,13 +122,21 @@ class LayerTrainer(_Trainer):
     # pylint: disable=R0913
     def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
                  epoch_end_callback=None, use_scheduler=False, dummy_run=False,
-                 reverse_inputs=False, model_path=None):
+                 reverse_inputs=False, model_path=None, num_classes=None):
         super().__init__(trainable, dataset, batch_size, max_epoch,
             batch_end_callback, epoch_end_callback, use_scheduler=use_scheduler,
             dummy_run=dummy_run, model_path=model_path)
         self.reverse_inputs = reverse_inputs
+        self.num_classes = num_classes
 
     def batch_log_prob(self, batch):
         if not self.reverse_inputs:
-            return self.trainable(batch[0].to(self.device)).log_prob(batch[1].to(self.device))
-        return self.trainable(batch[1].to(self.device)).log_prob(batch[0].to(self.device))
+            conditional = batch[0].to(self.device)
+            value = batch[1].to(self.device)
+        else:
+            conditional = batch[1].to(self.device)
+            value = batch[0].to(self.device)
+        if self.num_classes is not None:
+            conditional = torch.nn.functional.one_hot(conditional, self.num_classes).float()
+        return self.trainable(conditional).log_prob(value)
+

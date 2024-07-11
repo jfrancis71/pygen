@@ -19,12 +19,12 @@ class ConditionalDigitDistribution(nn.Module):
     def __init__(self):
         super().__init__()
         # pylint: disable=E1101
-        self.logits = nn.Parameter(torch.zeros([10, 1*28*28], requires_grad=True))
+        self.linear = nn.Linear(10, 1*28*28)
         self.layer = bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28])
 
     # pylint: disable=C0103, C0116
     def forward(self, x):
-        return self.layer(self.logits[x])
+        return self.layer(self.linear(x))
 
 
 parser = argparse.ArgumentParser(description='PyGen Conditional MNIST PixelCNN')
@@ -44,11 +44,11 @@ epoch_end_callback = callbacks.callback_compose([
     callbacks.TBConditionalImagesCallback(tb_writer, "conditional_generated_images", num_labels=10),
     callbacks.TBTotalLogProbCallback(tb_writer, "train_epoch_log_prob"),
     callbacks.TBDatasetLogProbLayerCallback(tb_writer, "validation_log_prob",
-        validation_dataset, reverse_inputs=True)
+        validation_dataset)
     ])
 conditional_digit_distribution = ConditionalDigitDistribution()
 train.LayerTrainer(
     conditional_digit_distribution.to(ns.device),
     train_dataset,
     batch_end_callback=callbacks.TBBatchLogProbCallback(tb_writer, "batch_log_prob"),
-    epoch_end_callback=epoch_end_callback, reverse_inputs=True, dummy_run=ns.dummy_run).train()
+    epoch_end_callback=epoch_end_callback, reverse_inputs=True, dummy_run=ns.dummy_run, num_classes=10).train()
