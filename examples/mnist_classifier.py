@@ -30,7 +30,7 @@ epoch_end_callbacks = callbacks.callback_compose([
     callbacks.TBClassifyImagesCallback(tb_writer, "validation_images",
         validation_dataset, class_labels),
     callbacks.TBTotalLogProbCallback(tb_writer, "train_epoch_log_prob"),
-    callbacks.TBDatasetLogProbLayerCallback(tb_writer, "validation_log_prob", validation_dataset),
+    callbacks.TBDatasetLogProbCallback(tb_writer, "validation_log_prob", validation_dataset),
     callbacks.TBAccuracyCallback(tb_writer, "train_accuracy", train_dataset),
     callbacks.TBAccuracyCallback(tb_writer, "validation_accuracy", validation_dataset)])
 digit_recognizer = classifier_net.ClassifierNet(mnist=True)

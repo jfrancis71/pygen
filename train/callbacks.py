@@ -135,11 +135,7 @@ class TBTotalLogProbCallback():
             trainer.total_log_prob/trainer.batch_len, trainer.epoch)
 
 
-class _TBDatasetLogProbCallback():
-    """An internal class for computing the log_prob over a dataset, presumably validation_dataset.
-       It should not be used directly, but is subclassed for the Distribution and Layer
-       trainables respectively.
-    """
+class TBDatasetLogProbCallback():
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -156,25 +152,8 @@ class _TBDatasetLogProbCallback():
             size += 1
         self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
 
-    # pylint: disable=C0116
-    def batch_log_prob(self, trainer, batch):
-        raise NotImplementedError("Unimplemented, Abstract Base Class")
-
-
-class TBDatasetLogProbDistributionCallback(_TBDatasetLogProbCallback):
-    """Logs the log_prob for Distribution trainables over a dataset, presumbly validation_dataset.
-    """
-    # pylint: disable=R0903
-    def batch_log_prob(self, trainer, batch):
-        return (trainer.trainable.log_prob(batch[0].to(trainer.device)).mean()).item()
-
-
-class TBDatasetLogProbLayerCallback(_TBDatasetLogProbCallback):
-    """Logs the log_prob for Layer trainables over a dataset, presumbly validation_dataset.
-    """
     def batch_log_prob(self, trainer, batch):
         return trainer.batch_log_prob(batch).mean().item()
-
 
 
 class TBAccuracyCallback():
