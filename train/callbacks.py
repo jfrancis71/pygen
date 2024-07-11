@@ -3,13 +3,17 @@ callbacks is a module defining functors which can be passed to a Trainer
 to monitor Training session.
 Callbacks are generally implemented as functors so they can be configured, eg
 the tensorboard writer, or the name of tensorboard string to log with.
+Callbacks when called are passed the trainer as an argument so they can
+inspect any trainer state for logging.
 """
 
 
-import torch
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import torch
+from torch.utils.data import DataLoader
 import torchvision
+from torchvision.utils import make_grid
 
 
 def labelled_images_grid(images, labels):
@@ -79,7 +83,7 @@ class TBImagesCallback():
         batch_size = 16
         imglist = [trainer.trainable.sample([batch_size]) for _ in range(16 // batch_size)]
         imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
-        grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=4)
+        grid_image = make_grid(imglist, padding=10, nrow=4)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
@@ -102,7 +106,7 @@ class TBConditionalImagesCallback():
         imglist = [trainer.trainable(
             torch.nn.functional.one_hot(torch.tensor(label_idx, device=trainer.device), self.num_labels).float()).sample([sample_size]) for label_idx in range(self.num_labels)]
         imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
-        grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=2)
+        grid_image = make_grid(imglist, padding=10, nrow=2)
         self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
@@ -143,17 +147,14 @@ class TBDatasetLogProbCallback():
         self.dataset = dataset
 
     def __call__(self, trainer):
-        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None,
+        dataloader = DataLoader(self.dataset, collate_fn=None,
             batch_size=self.batch_size, shuffle=True, drop_last=True)
         log_prob = 0.0
         size = 0
         for (_, batch) in enumerate(dataloader):
-            log_prob += self.batch_log_prob(trainer, batch)
+            log_prob += trainer.batch_log_prob(batch).mean().item()
             size += 1
         self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
-
-    def batch_log_prob(self, trainer, batch):
-        return trainer.batch_log_prob(batch).mean().item()
 
 
 class TBAccuracyCallback():
@@ -169,7 +170,7 @@ class TBAccuracyCallback():
         self.dataset = dataset
 
     def __call__(self, trainer):
-        dataloader = torch.utils.data.DataLoader(self.dataset, collate_fn=None,
+        dataloader = DataLoader(self.dataset, collate_fn=None,
             batch_size=self.batch_size, shuffle=True, drop_last=True)
         correct = 0.0
         size = 0
