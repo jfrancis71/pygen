@@ -17,12 +17,6 @@ digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True),
 train.LayerTrainer(digit_recognizer.to(ns.device), train_dataset).train()
 ```
 
-To train an mnist PixelCNN:
-
-```
-digit_distribution = pixelcnn.PixelCNNBernoulliDistribution(event_shape=[1, 28, 28])
-train.DistributionTrainer(digit_distribution.to(ns.device), train_dataset).train()
-```
 
 Full code examples:
 
@@ -30,9 +24,6 @@ Full code examples:
 
 ./examples/cifar10_classifier.py: Classic CIFAR10 classifier
 
-./examples/mnist_pixelcnn.py: Generative MNIST model based on PixelCNN
-
-./examples/cifar10_pixelcnn.py: Generative CIFAR10 model based on PixelCNN
 
 ## Layers
 
@@ -85,12 +76,6 @@ To run the mnist classifier:
 
 where the datasets_folder option points to where you would like to store the MNIST dataset download.
 
-The PixelCNN examples use the following repo:
-```
-git clone https://github.com/jfrancis71/pixel-cnn-pp.git
-mv pixel-cnn-pp pixelcnn_pp
-```
-This is a modified fork of https://github.com/pclucas14/pixel-cnn-pp. The modifications were made to support different types of probability distributions.
 
 ## Resources
 
