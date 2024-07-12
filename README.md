@@ -80,10 +80,18 @@ where the datasets_folder option points to where you would like to store the MNI
 ## Resources
 
 The design principles behind Distributions and Layers can be quite subtle, particularly with respect to getting the shapes correct.
+I refer to both Tensorflow and PyTorch as both packages follow the same design principles and so reference material from either is useful.
 So here are some resources:
+
+### PyTorch
 
 PyTorch Distribution:
 (https://pytorch.org/docs/stable/distributions.html)
+
+A discussion of PyTorch Probability Distribution shapes:
+(https://bochang.me/blog/posts/pytorch-distributions/)
+
+### Tensorflow
 
 For distribution shapes:
 (https://www.tensorflow.org/probability/examples/Understanding_TensorFlow_Distributions_Shapes)
@@ -94,11 +102,13 @@ https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoul
 An example of Tensorflow Probability Layer IndependentBernoulli:
 (https://www.tensorflow.org/probability/api_docs/python/tfp/layers/IndependentBernoulli)
 
-A discussion of PyTorch Probability Distribution shapes:
-(https://bochang.me/blog/posts/pytorch-distributions/)
+Chanseok Kang notes, focussing on Tensorflow Probability Layers:
+(https://goodboychan.github.io/python/coursera/tensorflow_probability/icl/2021/08/23/01-Probabilistic-layers.html)
+
+Tensorflow Distributions:
+(https://arxiv.org/pdf/1711.10604)
+
+### General
 
 A general discussion on probability distribution shapes:
 (https://ericmjl.github.io/blog/2019/5/29/reasoning-about-shapes-and-probability-distributions/)
-
-Chanseok Kang notes, focussing on Tensorflow Probability Layers:
-(https://goodboychan.github.io/python/coursera/tensorflow_probability/icl/2021/08/23/01-Probabilistic-layers.html)
