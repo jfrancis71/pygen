@@ -64,8 +64,8 @@ class _Trainer():
         self.batch_num = 0
         for self.epoch in range(self.max_epoch):
             print("Epoch: ", self.epoch)
-            self.total_log_prob = 0.0
             self.batch_len = 0
+            self.start_epoch()
             for (_, batch) in enumerate(dataloader):
                 self.trainable.zero_grad()
                 log_prob = torch.mean(self.batch_log_prob(batch))  # pylint: disable=E1101
@@ -84,6 +84,9 @@ class _Trainer():
                 torch.save(self.trainable.state_dict(), self.model_path)
             if scheduler:
                 scheduler.step()
+
+    def start_epoch(self):
+        self.total_log_prob = 0.0
 
     # pylint: disable=C0116
     def batch_log_prob(self, batch):
