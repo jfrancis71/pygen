@@ -12,21 +12,6 @@ from pygen.train import callbacks
 import pygen.layers.independent_bernoulli as bernoulli_layer
 
 
-class ConditionalDigitDistribution(nn.Module):
-    """Layer type which accepts a digit index and returns a probability distribution
-       over an image, conditioned on that digit.
-    """
-    def __init__(self):
-        super().__init__()
-        # pylint: disable=E1101
-        self.linear = nn.Linear(10, 1*28*28)
-        self.layer = bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28])
-
-    # pylint: disable=C0103, C0116
-    def forward(self, x):
-        return self.layer(self.linear(x))
-
-
 parser = argparse.ArgumentParser(description='PyGen Conditional MNIST PixelCNN')
 parser.add_argument("--datasets_folder", default=".")
 parser.add_argument("--tb_folder", default=None)
@@ -46,7 +31,8 @@ epoch_end_callback = callbacks.callback_compose([
     callbacks.TBDatasetLogProbCallback(tb_writer, "validation_log_prob",
         validation_dataset)
     ])
-conditional_digit_distribution = ConditionalDigitDistribution()
+conditional_digit_distribution = nn.Sequential(nn.Linear(10, 1*28*28),
+    bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28]))
 train.LayerTrainer(
     conditional_digit_distribution.to(ns.device),
     train_dataset,
