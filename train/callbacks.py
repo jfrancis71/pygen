@@ -11,15 +11,27 @@ inspect any trainer state for logging.
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 import torchvision
 from torchvision.utils import make_grid
+import pygen.layers.categorical as layers_categorical
+import pygen.layers.independent_bernoulli as layers_bernoulli
 
 
-def labelled_images_grid(images, labels):
-    """images is a list or tensor of 25 images, labels is a list of 25 text objects.
-       returns a tensor which represents these images and labels organised into a 5x5 grid.
+def make_labelled_images_grid(images, labels):
+    """make a grid of labelled images.
+    images is a list or tensor of 25 images, labels is a list of 25 strings.
+    returns an image tensor of labelled images organised into 5x5 grid.
+
+    >>> images, labels = torch.zeros(25, 1, 28, 28), [str(idx) for idx in range(25)]
+    >>> len(make_labelled_images_grid(images, labels).shape)
+    3
     """
+    if images.shape[0] != 25:
+        raise RuntimeError(f"images batch shape is {images.shape[0]} expected 25.")
+    if len(labels) != 25:
+        raise RuntimeError(f"len(labels) is {len(labels)} expected 25.")
     plt.figure(figsize=(10,10))
     for i in range(25):
         # Start next subplot.
@@ -38,7 +50,7 @@ def labelled_images_grid(images, labels):
                 cmap = None
             else:
                 raise ValueError(f"Unknow image type with num_channels={num_channels}")
-        plt.imshow(image, cmap=cmap)
+        plt.imshow(image.cpu(), cmap=cmap)
     canvas = plt.gca().figure.canvas
     canvas.draw()
     data = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
@@ -47,32 +59,44 @@ def labelled_images_grid(images, labels):
     return data[:, :, :3].transpose(2, 0, 1)
 
 
-class TBClassifyImagesCallback():
-    """You initialise with the dataset eg validation_dataset and the class labels (in text string)
-       for the dataset, ie the mappings from the numerical Categorical index to the text string.
-       It returns 5x5 image grid with labelling using the trainable object.
-       Suitable for trainables that are Layer objects mapping from images to a
-       Categorical distribution.
+class TBClassifyImages():
+    """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
+    images should be a tensor of batch size 25.
+    categories should be a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
+
+    >>> images = torch.ones([25, 1, 5, 5])
+    >>> dataset_class_labels = [str(category) for category in range(10)]
+    >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+    >>> callback = TBClassifyImages(None, "", images, dataset_class_labels)
+    >>> trainer = type('Trainer', (object,), {'trainable': trainable})()
+    >>> callback(trainer)
     """
     # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name, dataset, class_labels):
+    def __init__(self, tb_writer, tb_name, images, categories):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
-        self.dataset = dataset
-        self.class_labels = class_labels
+        self.images = images
+        self.categories = categories
 
     def __call__(self, trainer):
-        images = torch.stack([self.dataset[i][0].to(trainer.device) for i in range(25)])  # pylint: disable=E1101
-        labels = [self.class_labels[idx.to("cpu").item()]
-            for idx in trainer.trainable(images).sample()]
-        labelled_images = labelled_images_grid(images.to("cpu"), labels)
-        self.tb_writer.add_image(self.tb_name, labelled_images, trainer.epoch)
+        classifier = trainer.trainable
+        device = next(trainer.trainable.parameters()).device
+        images = self.images.to(device)
+        label_indices = classifier(images).sample()
+        labels = [self.categories[idx.to("cpu").item()] for idx in label_indices]
+        labelled_images = make_labelled_images_grid(images, labels)
+        if self.tb_writer is not None:
+            self.tb_writer.add_image(self.tb_name, labelled_images, trainer.epoch)
 
 
-class TBImagesCallback():
-    """Creates a 4x4 grid of images using the trainable.
-       Suitable for trainables that are distributions where the probability distribution
-       is over images.
+class TBSampleImages():
+    """Creates a 4x4 grid of images by sampling the trainable.
+
+    >>> callback = TBSampleImages(None, "")
+    >>> base_distribution = torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([1, 8, 8]))
+    >>> distribution = torch.distributions.independent.Independent(base_distribution, reinterpreted_batch_ndims=3)
+    >>> trainer = type('Trainer', (object,), {'trainable': distribution})()
+    >>> callback(trainer)
     """
     # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name):
@@ -80,22 +104,25 @@ class TBImagesCallback():
         self.tb_name = tb_name
 
     def __call__(self, trainer):
-        batch_size = 16
-        imglist = [trainer.trainable.sample([batch_size]) for _ in range(16 // batch_size)]
-        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
-        grid_image = make_grid(imglist, padding=10, nrow=4)
-        self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
+        imglist = trainer.trainable.sample([16])
+        grid_image = make_grid(imglist, padding=10, nrow=4, value_range=(0.0, 1.0))
+        if self.tb_writer is not None:
+            self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
-class TBConditionalImagesCallback():
-    """Produces a 10x2 grid of images where each row is an image generated conditioned on
+class TBConditionalImages():
+    """Produces a num_labels x 2 grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
-       Suitable for trainables that are Layer objects accepting a one got vector
+       Suitable for trainables that are Layer objects accepting a one hot vector
        and returning a probability distribution over an image.
        eg a trainable accepting one hot vector with position 2 = 1, returning 1x28x28 probability distributions
        over digit 2.
+
+    >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
+    >>> callback = TBConditionalImages(None, "", 10)
+    >>> trainer = type('Trainer', (object,), {'trainable': trainable})()
+    >>> callback(trainer)
     """
-    # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name, num_labels):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -103,14 +130,16 @@ class TBConditionalImagesCallback():
 
     def __call__(self, trainer):
         sample_size = 2
-        imglist = [trainer.trainable(
-            torch.nn.functional.one_hot(torch.tensor(label_idx, device=trainer.device), self.num_labels).float()).sample([sample_size]) for label_idx in range(self.num_labels)]
-        imglist = torch.clip(torch.cat(imglist, axis=0), 0.0, 1.0)  # pylint: disable=E1101
-        grid_image = make_grid(imglist, padding=10, nrow=2)
-        self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
+        device = next(trainer.trainable.parameters()).device
+        identity = torch.eye(self.num_labels, device=device)
+        images = trainer.trainable(identity).sample([sample_size])
+        imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
+        grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
+        if self.tb_writer is not None:
+            self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
 
 
-class TBBatchLogProbCallback():
+class TBBatchLogProb():
     """Logs the batch log_prob.
        As it applies to the trainer, not the trainable, it is applicable to either
        Layer or Distribution trainables.
@@ -124,7 +153,7 @@ class TBBatchLogProbCallback():
         self.tb_writer.add_scalar(self.tb_name, trainer.log_prob_item, trainer.batch_num)
 
 
-class TBTotalLogProbCallback():
+class TBEpochLogProb():
     """Logs the total log_prob for the epoch.
        As it applies to the trainer, not the trainable, it is applicable to either
        Layer or Distribution trainables.
@@ -139,7 +168,7 @@ class TBTotalLogProbCallback():
             trainer.total_log_prob/trainer.batch_len, trainer.epoch)
 
 
-class TBDatasetLogProbCallback():
+class TBDatasetLogProb():
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -157,7 +186,7 @@ class TBDatasetLogProbCallback():
         self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
 
 
-class TBAccuracyCallback():
+class TBAccuracy():
     """This is for classification trainables, ie Layer trainables which return
        a Categorical distribution, and returns percentage accuracy over
        a dataset, presumably validation_dataset.
@@ -189,3 +218,6 @@ def callback_compose(list_callbacks):
         for func in list_callbacks:
             func(trainer)
     return call_callbacks
+
+import doctest
+doctest.testmod()
