@@ -33,5 +33,4 @@ class ClassifierNet(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        distribution = torch.distributions.categorical.Categorical(logits=x)
-        return distribution
+        return x  # We do not return a distribution, as some clients will want Categorical, OneHot, Multivariate...

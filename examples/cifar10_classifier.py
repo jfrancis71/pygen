@@ -37,7 +37,7 @@ epoch_end_callbacks = callbacks.callback_compose([
     callbacks.TBDatasetLogProb(tb_writer, "validation_log_prob", validation_dataset),
     callbacks.TBAccuracy(tb_writer, "train_accuracy", train_dataset),
     callbacks.TBAccuracy(tb_writer, "validation_accuracy", validation_dataset)])
-cifar10_recognizer = classifier_net.ClassifierNet(mnist=False)
+cifar10_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=False), layer_categorical.Categorical())
 train.LayerTrainer(cifar10_recognizer.to(ns.device), train_dataset, max_epoch=ns.max_epoch,
     use_scheduler=ns.use_scheduler,
     batch_end_callback=callbacks.TBBatchLogProb(tb_writer, "batch_log_prob"),
