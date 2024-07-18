@@ -13,7 +13,7 @@ import pygen.layers.categorical as layer_categorical
 
 
 parser = argparse.ArgumentParser(description='PyGen CIFAR10 Classifier')
-parser.add_argument("--datasets_folder", default=".")
+parser.add_argument("--datasets_folder", default="~/datasets")
 parser.add_argument("--tb_folder", default=None)
 parser.add_argument("--device", default="cpu")
 parser.add_argument("--max_epoch", default=10, type=int)
@@ -35,8 +35,8 @@ epoch_end_callbacks = callbacks.callback_compose([
         class_labels),
     callbacks.TBEpochLogProb(tb_writer, "train_epoch_log_prob"),
     callbacks.TBDatasetLogProb(tb_writer, "validation_log_prob", validation_dataset),
-    callbacks.TBAccuracy(tb_writer, "train_accuracy", train_dataset),
-    callbacks.TBAccuracy(tb_writer, "validation_accuracy", validation_dataset)])
+    callbacks.TBDatasetAccuracy(tb_writer, "train_accuracy", train_dataset),
+    callbacks.TBDatasetAccuracy(tb_writer, "validation_accuracy", validation_dataset)])
 cifar10_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=False), layer_categorical.Categorical())
 train.LayerTrainer(cifar10_recognizer.to(ns.device), train_dataset, max_epoch=ns.max_epoch,
     use_scheduler=ns.use_scheduler,

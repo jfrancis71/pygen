@@ -17,6 +17,7 @@ import torchvision
 from torchvision.utils import make_grid
 import pygen.layers.categorical as layers_categorical
 import pygen.layers.independent_bernoulli as layers_bernoulli
+import pygen.train.train as train
 
 
 def make_labelled_images_grid(images, labels):
@@ -168,7 +169,7 @@ class TBEpochLogProb():
             trainer.total_log_prob/trainer.batch_len, trainer.epoch)
 
 
-class TBDatasetLogProb():
+class TBDatasetMetricsLogging():
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
@@ -178,36 +179,40 @@ class TBDatasetLogProb():
     def __call__(self, trainer):
         dataloader = DataLoader(self.dataset, collate_fn=None,
             batch_size=self.batch_size, shuffle=True, drop_last=True)
-        log_prob = 0.0
-        size = 0
-        for (_, batch) in enumerate(dataloader):
-            log_prob += trainer.batch_log_prob(batch).mean().item()
-            size += 1
-        self.tb_writer.add_scalar(self.tb_name, log_prob/size, trainer.epoch)
+        dataset_iter = iter(dataloader)
+        batch = next(dataset_iter)
+        metrics = self.metric(trainer, batch)
+        num_batches = 1
+        for batch in dataset_iter:
+            metrics += self.metric(trainer, batch)
+            num_batches += 1
+        self.log_metrics(metrics, trainer, num_batches)
+
+    def log_metrics(self, metrics, trainer, num_batches):  # This is default is there is just 1 metric
+        self.tb_writer.add_scalar(self.tb_name, metrics/num_batches, trainer.epoch)
 
 
-class TBAccuracy():
+class TBDatasetLogProb(TBDatasetMetricsLogging):
+    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
+        super().__init__(tb_writer, tb_name, dataset, batch_size)
+
+    def metric(self, trainer, batch):
+        return trainer.batch_log_prob(batch).mean()
+
+
+class TBDatasetAccuracy(TBDatasetMetricsLogging):
     """This is for classification trainables, ie Layer trainables which return
        a Categorical distribution, and returns percentage accuracy over
        a dataset, presumably validation_dataset.
     """
     # pylint: disable=R0903
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
-        self.tb_writer = tb_writer
-        self.tb_name = tb_name
-        self.batch_size = batch_size
-        self.dataset = dataset
+        super().__init__(tb_writer, tb_name, dataset, batch_size)
 
-    def __call__(self, trainer):
-        dataloader = DataLoader(self.dataset, collate_fn=None,
-            batch_size=self.batch_size, shuffle=True, drop_last=True)
-        correct = 0.0
-        size = 0
-        for (_, batch) in enumerate(dataloader):
-            correct += (trainer.trainable(batch[0].to(trainer.device)).sample().cpu() \
-                ==batch[1]).sum().item()
-            size += self.batch_size
-        self.tb_writer.add_scalar(self.tb_name, correct/size, trainer.epoch)
+    def metric(self, trainer, batch):
+        correct = (trainer.trainable(batch[0].to(trainer.device)).sample() \
+                    == batch[1].to(trainer.device)).float()
+        return correct.float().mean()
 
 
 def callback_compose(list_callbacks):
@@ -218,6 +223,7 @@ def callback_compose(list_callbacks):
         for func in list_callbacks:
             func(trainer)
     return call_callbacks
+
 
 import doctest
 doctest.testmod()

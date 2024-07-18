@@ -13,7 +13,7 @@ import pygen.layers.independent_bernoulli as bernoulli_layer
 
 
 parser = argparse.ArgumentParser(description='PyGen Conditional MNIST PixelCNN')
-parser.add_argument("--datasets_folder", default=".")
+parser.add_argument("--datasets_folder", default="~/datasets")
 parser.add_argument("--tb_folder", default=None)
 parser.add_argument("--device", default="cpu")
 parser.add_argument("--dummy_run", action="store_true")
