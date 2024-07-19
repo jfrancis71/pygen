@@ -81,11 +81,9 @@ class TBClassifyImages():
 
     def __call__(self, trainer):
         classifier = trainer.trainable
-        device = next(trainer.trainable.parameters()).device
-        images = self.images.to(device)
-        label_indices = classifier(images).sample()
+        label_indices = classifier(self.images).sample()
         labels = [self.categories[idx.to("cpu").item()] for idx in label_indices]
-        labelled_images = make_labelled_images_grid(images, labels)
+        labelled_images = make_labelled_images_grid(self.images, labels)
         if self.tb_writer is not None:
             self.tb_writer.add_image(self.tb_name, labelled_images, trainer.epoch)
 
@@ -131,8 +129,7 @@ class TBConditionalImages():
 
     def __call__(self, trainer):
         sample_size = 2
-        device = next(trainer.trainable.parameters()).device
-        identity = torch.eye(self.num_labels, device=device)
+        identity = torch.eye(self.num_labels)
         images = trainer.trainable(identity).sample([sample_size])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
@@ -177,7 +174,7 @@ class TBDatasetMetricsLogging():
         self.dataset = dataset
 
     def __call__(self, trainer):
-        dataloader = DataLoader(self.dataset, collate_fn=None,
+        dataloader = DataLoader(self.dataset, collate_fn=None,generator=torch.Generator(device=torch.get_default_device()),
             batch_size=self.batch_size, shuffle=True, drop_last=True)
         dataset_iter = iter(dataloader)
         batch = next(dataset_iter)
@@ -210,8 +207,8 @@ class TBDatasetAccuracy(TBDatasetMetricsLogging):
         super().__init__(tb_writer, tb_name, dataset, batch_size)
 
     def metric(self, trainer, batch):
-        correct = (trainer.trainable(batch[0].to(trainer.device)).sample() \
-                    == batch[1].to(trainer.device)).float()
+        correct = (trainer.trainable(batch[0]).sample() \
+                    == batch[1]).float()
         return correct.float().mean()
 
 

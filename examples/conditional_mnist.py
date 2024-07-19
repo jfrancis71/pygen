@@ -6,7 +6,8 @@ from torch.utils.data import random_split
 from torch.utils.tensorboard import SummaryWriter
 import torch
 from torch import nn
-import torchvision
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 from pygen.train import train
 from pygen.train import callbacks
 import pygen.layers.independent_bernoulli as bernoulli_layer
@@ -19,11 +20,10 @@ parser.add_argument("--device", default="cpu")
 parser.add_argument("--dummy_run", action="store_true")
 ns = parser.parse_args()
 
-transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-    lambda x: (x > 0.5).float()])
-dataset = torchvision.datasets.MNIST(ns.datasets_folder, train=True, download=True,
-    transform=transform)
+transform = transforms.Compose([transforms.ToTensor(), lambda x: (x > 0.5).float(), train.DevicePlacement()])
+dataset = datasets.MNIST(ns.datasets_folder, train=True, download=False, transform=transform)
 train_dataset, validation_dataset = random_split(dataset, [50000, 10000])
+torch.set_default_device(ns.device)
 tb_writer = SummaryWriter(ns.tb_folder)
 epoch_end_callback = callbacks.callback_compose([
     callbacks.TBConditionalImages(tb_writer, "conditional_generated_images", num_labels=10),
@@ -34,7 +34,7 @@ epoch_end_callback = callbacks.callback_compose([
 conditional_digit_distribution = nn.Sequential(nn.Linear(10, 1*28*28),
     bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28]))
 train.LayerTrainer(
-    conditional_digit_distribution.to(ns.device),
+    conditional_digit_distribution,
     train_dataset,
     batch_end_callback=callbacks.TBBatchLogProb(tb_writer, "batch_log_prob"),
     epoch_end_callback=epoch_end_callback, reverse_inputs=True, dummy_run=ns.dummy_run, num_classes=10).train()

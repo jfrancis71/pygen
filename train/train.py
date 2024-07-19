@@ -13,6 +13,11 @@ import torch
 import torch.optim.lr_scheduler
 
 
+class DevicePlacement:
+    def __call__(self, x):
+        return x.to(torch.get_default_device())
+
+
 # Robbins Monro, Ref 1:
 def rm_scheduler(epoch):
     """Robins Monro compliant scheduler.
@@ -21,7 +26,7 @@ def rm_scheduler(epoch):
     """
     return 1 / math.sqrt(1 + epoch)
 
-
+ # generator=torch.Generator(device=torch.get_default_device()),
 class _Trainer():
     # pylint: disable=R0902
     # pylint: disable=R0913
@@ -37,7 +42,6 @@ class _Trainer():
         self.use_scheduler = use_scheduler
         self.dummy_run = dummy_run
         self.model_path = model_path
-        self.device = next(self.trainable.parameters()).device
         self.batch_num = None
         self.epoch = None
         self.total_log_prob = None
@@ -54,7 +58,7 @@ class _Trainer():
         else:
             dataset = self.dataset
         dataloader = torch.utils.data.DataLoader(dataset, collate_fn=None,
-            batch_size=self.batch_size, shuffle=True,
+            batch_size=self.batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
                                              drop_last=True)
         opt = torch.optim.Adam(self.trainable.parameters(), lr=.001)
         if self.use_scheduler:
@@ -109,7 +113,7 @@ class DistributionTrainer(_Trainer):
             model_path=model_path)
 
     def batch_log_prob(self, batch):
-        return self.trainable.log_prob(batch[0].to(self.device))
+        return self.trainable.log_prob(batch[0])
 
 
 class LayerTrainer(_Trainer):
@@ -134,11 +138,11 @@ class LayerTrainer(_Trainer):
 
     def batch_log_prob(self, batch):
         if not self.reverse_inputs:
-            conditional = batch[0].to(self.device)
-            value = batch[1].to(self.device)
+            conditional = batch[0]
+            value = batch[1]
         else:
-            conditional = batch[1].to(self.device)
-            value = batch[0].to(self.device)
+            conditional = batch[1]
+            value = batch[0]
         if self.num_classes is not None:
             conditional = torch.nn.functional.one_hot(conditional, self.num_classes).float()
         return self.trainable(conditional).log_prob(value)
