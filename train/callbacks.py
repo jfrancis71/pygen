@@ -60,7 +60,7 @@ def make_labelled_images_grid(images, labels):
     return data[:, :, :3].transpose(2, 0, 1)
 
 
-class TBClassifyImages:
+def tb_classify_images(tb_writer, tb_name, images, categories):
     """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
     images should be a tensor of batch size 25.
     categories should be a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
@@ -68,24 +68,19 @@ class TBClassifyImages:
     >>> images = torch.ones([25, 1, 5, 5])
     >>> dataset_class_labels = [str(category) for category in range(10)]
     >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
-    >>> callback = TBClassifyImages(None, "", images, dataset_class_labels)
-    >>> trainer = type('Trainer', (object,), {'trainable': trainable})()
-    >>> callback(trainer)
+    >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
+    >>> training_loop_info = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
+    >>> callback(training_loop_info)
     """
-    # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name, images, categories):
-        self.tb_writer = tb_writer
-        self.tb_name = tb_name
-        self.images = images
-        self.categories = categories
-
-    def __call__(self, training_loop_info):
+    def cb_tb_classify_images(training_loop_info):
         classifier = training_loop_info.trainable
-        label_indices = classifier(self.images).sample()
-        labels = [self.categories[idx.to("cpu").item()] for idx in label_indices]
-        labelled_images = make_labelled_images_grid(self.images, labels)
-        if self.tb_writer is not None:
-            self.tb_writer.add_image(self.tb_name, labelled_images, training_loop_info.epoch_num)
+        label_indices = classifier(images).sample()
+        labels = [categories[idx.to("cpu").item()] for idx in label_indices]
+        labelled_images = make_labelled_images_grid(images, labels)
+        if tb_writer is not None:
+            tb_writer.add_image(tb_name, labelled_images, training_loop_info.epoch_num)
+
+    return cb_tb_classify_images
 
 
 class TBSampleImages:
@@ -109,7 +104,7 @@ class TBSampleImages:
             self.tb_writer.add_image(self.tb_name, grid_image, training_loop_info.epoch_num)
 
 
-class TBConditionalImages:
+def tb_conditional_images(tb_writer, tb_name, num_labels):
     """Produces a num_labels x 2 grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
        Suitable for trainables that are Layer objects accepting a one hot vector
@@ -118,24 +113,20 @@ class TBConditionalImages:
        over digit 2.
 
     >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
-    >>> callback = TBConditionalImages(None, "", 10)
+    >>> callback = tb_conditional_images(None, "", 10)
     >>> trainer = type('Trainer', (object,), {'trainable': trainable})()
     >>> callback(trainer)
     """
-    def __init__(self, tb_writer, tb_name, num_labels):
-        self.tb_writer = tb_writer
-        self.tb_name = tb_name
-        self.num_labels = num_labels
-
-    def __call__(self, training_loop_info):
+    def cb_tb_conditional_images(training_loop_info):
         sample_size = 2
-        identity = torch.eye(self.num_labels)
+        identity = torch.eye(num_labels)
         images = training_loop_info.trainable(identity).sample([sample_size])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
-        if self.tb_writer is not None:
-            self.tb_writer.add_image(self.tb_name, grid_image, training_loop_info.epoch_num)
+        if tb_writer is not None:
+            tb_writer.add_image(tb_name, grid_image, training_loop_info.epoch_num)
 
+    return cb_tb_conditional_images
 
 def tb_log_metrics(tb_writer, tb_name, metrics, step):
     for key in metrics.dtype.fields.keys():
@@ -150,41 +141,33 @@ def reduce_metrics_history(metrics_history):
     return metrics_epoch
 
 
-class TBBatchLogMetrics:
-    def __init__(self, tb_writer):
-        self.tb_writer = tb_writer
-
-    def __call__(self, training_loop_info):
-        tb_log_metrics(self.tb_writer, "batch", training_loop_info.batch_metrics, training_loop_info.batch_num)
+def tb_batch_log_metrics(tb_writer):
+    return lambda training_loop_info: tb_log_metrics(tb_writer, "batch", training_loop_info.batch_metrics,
+        training_loop_info.batch_num)
 
 
-class TBEpochLogMetrics:
-    def __init__(self, tb_writer):
-        self.tb_writer = tb_writer
-
-    def __call__(self, training_loop_info):
+def tb_epoch_log_metrics(tb_writer):
+    def cb_tb_epoch_log_metrics(training_loop_info):
         metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
-        tb_log_metrics(self.tb_writer, "train_epoch", metrics_epoch, training_loop_info.epoch_num)
+        tb_log_metrics(tb_writer, "train_epoch", metrics_epoch, training_loop_info.epoch_num)
+
+    return cb_tb_epoch_log_metrics
 
 
-class TBDatasetMetricsLogging:
-    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
-        self.tb_writer = tb_writer
-        self.tb_name = tb_name
-        self.batch_size = batch_size
-        self.dataset = dataset
-
-    def __call__(self, training_loop_info):
-        dataloader = DataLoader(self.dataset, collate_fn=None,
+def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
+    def cb_tb_dataset_metrics_logging(training_loop_info):
+        dataloader = DataLoader(dataset, collate_fn=None,
             generator=torch.Generator(device=torch.get_default_device()),
-            batch_size=self.batch_size, shuffle=True, drop_last=True)
+            batch_size=batch_size, shuffle=True, drop_last=True)
         dataset_iter = iter(dataloader)
         metrics_history = []
         for batch in dataset_iter:
             log_prob, batch_metrics = training_loop_info.batch_objective_fn(training_loop_info.trainable, batch)
             metrics_history.append(batch_metrics)
         metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
-        tb_log_metrics(self.tb_writer, self.tb_name + "_epoch", metrics_epoch, training_loop_info.epoch_num)
+        tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, training_loop_info.epoch_num)
+
+    return cb_tb_dataset_metrics_logging
 
 
 def callback_compose(list_callbacks):

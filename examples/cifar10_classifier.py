@@ -32,12 +32,12 @@ example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset,
 class_labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 tb_writer = SummaryWriter(ns.tb_folder)
 epoch_end_callbacks = callbacks.callback_compose([
-    callbacks.TBClassifyImages(tb_writer, "train_images", example_train_images, class_labels),
-    callbacks.TBClassifyImages(tb_writer, "validation_images", example_valid_images, class_labels),
-    callbacks.TBEpochLogMetrics(tb_writer),
-    callbacks.TBDatasetMetricsLogging(tb_writer, "validation", validation_dataset),
+    callbacks.tb_classify_images(tb_writer, "train_images", example_train_images, class_labels),
+    callbacks.tb_classify_images(tb_writer, "validation_images", example_valid_images, class_labels),
+    callbacks.tb_epoch_log_metrics(tb_writer),
+    callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset),
     ])
 cifar10_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=False), layer_categorical.Categorical())
 train.train(cifar10_recognizer, train_dataset, train.classifier_trainer,
-    batch_end_callback=callbacks.TBBatchLogMetrics(tb_writer),
+    batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
     epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run)
