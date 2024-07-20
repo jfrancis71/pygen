@@ -9,6 +9,7 @@ a Softmax distribution over digits can be implemented as a layer object.
 
 
 import math
+import numpy as np
 import torch
 import torch.optim.lr_scheduler
 
@@ -21,129 +22,77 @@ class DevicePlacement:
 # Robbins Monro, Ref 1:
 def rm_scheduler(epoch):
     """Robins Monro compliant scheduler.
-       See "What is an adaptive step size in parameter estimation", youtube,
+       See "What is an adaptive step size in parameter estimation", YouTube,
        Ian explains signals, systems and digital comms, June 20, 2022
     """
     return 1 / math.sqrt(1 + epoch)
 
- # generator=torch.Generator(device=torch.get_default_device()),
-class _Trainer():
-    # pylint: disable=R0902
-    # pylint: disable=R0913
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10,
-            batch_end_callback=None, epoch_end_callback=None, use_scheduler=False,
-            dummy_run=False, model_path=None):
-        self.trainable = trainable
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.max_epoch = max_epoch
-        self.batch_end_callback = batch_end_callback
-        self.epoch_end_callback = epoch_end_callback
-        self.use_scheduler = use_scheduler
-        self.dummy_run = dummy_run
-        self.model_path = model_path
-        self.batch_num = None
-        self.epoch = None
-        self.total_log_prob = None
-        self.batch_len = None
-        self.log_prob_item = None
 
-    def train(self):
-        """train() starts the training session.
-           Note this will set various member attributes while running so they can be
-           accessed by callbacks.
-        """
-        if self.dummy_run:
-            dataset = torch.utils.data.Subset(self.dataset, range(self.batch_size))
-        else:
-            dataset = self.dataset
-        dataloader = torch.utils.data.DataLoader(dataset, collate_fn=None,
-            batch_size=self.batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
-                                             drop_last=True)
-        opt = torch.optim.Adam(self.trainable.parameters(), lr=.001)
-        if self.use_scheduler:
-            scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler)
-        else:
-            scheduler = None
-        self.batch_num = 0
-        for self.epoch in range(self.max_epoch):
-            print("Epoch: ", self.epoch)
-            self.batch_len = 0
-            self.start_epoch()
-            for (_, batch) in enumerate(dataloader):
-                self.trainable.zero_grad()
-                log_prob = torch.mean(self.batch_log_prob(batch))  # pylint: disable=E1101
-                loss = -log_prob
-                loss.backward()
-                opt.step()
-                self.log_prob_item = log_prob.item()
-                self.total_log_prob += self.log_prob_item
-                self.batch_num += 1
-                self.batch_len += 1
-                if self.batch_end_callback is not None:
-                    self.batch_end_callback(self)
-            if self.epoch_end_callback is not None:
-                self.epoch_end_callback(self)
-            if self.model_path is not None:
-                torch.save(self.trainable.state_dict(), self.model_path)
-            if scheduler:
-                scheduler.step()
-
-    def start_epoch(self):
-        self.total_log_prob = 0.0
-
-    # pylint: disable=C0116
-    def batch_log_prob(self, batch):
-        raise NotImplementedError("Unimplemented, Abstract Base Class")
-
-
-class DistributionTrainer(_Trainer):
-    """DistributionTrainer trains a trainable (a learnable probability distribution)
-       This distribution should support a log_prob method.
-       The train method takes a batch of tuples from the dataset and passes the first element
-       of this tuple to the log_prob method.
-       Example: Used to train generative models, eg PixelCNN.
-    """
-    # pylint: disable=R0913
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None):
-        super().__init__(
-            trainable, dataset, batch_size, max_epoch, batch_end_callback,
-            epoch_end_callback, use_scheduler=use_scheduler, dummy_run=dummy_run,
-            model_path=model_path)
-
-    def batch_log_prob(self, batch):
-        return self.trainable.log_prob(batch[0])
-
-
-class LayerTrainer(_Trainer):
-    """LayerTrainer trains a trainable layer (ie a probability distribution conditioned on input)
-       The trainable should be an object which accepts a tensor input and returns a probability
-       distribution.
-       The first element of the batch from the dataset is the input to the trainable and the
-       second element is the sample from the distribution. (unless reverse_inputs is True in
-       which case it is the other way around).
-       Example: Could be used to train MNIST classifier, or a PixelCNN conditioned on digit
-       identity (with reverse_inputs set to True).
-    """
-    # pylint: disable=R0913
-    def __init__(self, trainable, dataset, batch_size=32, max_epoch=10, batch_end_callback=None,
-                 epoch_end_callback=None, use_scheduler=False, dummy_run=False,
-                 reverse_inputs=False, model_path=None, num_classes=None):
-        super().__init__(trainable, dataset, batch_size, max_epoch,
-            batch_end_callback, epoch_end_callback, use_scheduler=use_scheduler,
-            dummy_run=dummy_run, model_path=model_path)
-        self.reverse_inputs = reverse_inputs
+class OneHotLayerTrainer:
+    def __init__(self, num_classes):
         self.num_classes = num_classes
 
-    def batch_log_prob(self, batch):
-        if not self.reverse_inputs:
-            conditional = batch[0]
-            value = batch[1]
-        else:
-            conditional = batch[1]
-            value = batch[0]
-        if self.num_classes is not None:
-            conditional = torch.nn.functional.one_hot(conditional, self.num_classes).float()
-        return self.trainable(conditional).log_prob(value)
+    def __call__(self, trainable, batch):
+        conditional = torch.nn.functional.one_hot(batch[1], self.num_classes).float()
+        distribution = trainable(conditional)
+        log_prob_mean = (distribution.log_prob(batch[0])).mean()
+        return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
 
+
+def classifier_trainer(trainable, batch):
+    conditional = batch[0]
+    value = batch[1]
+    distribution = trainable(conditional)
+    log_prob_mean = (distribution.log_prob(value)).mean()
+    accuracy = (distribution.sample() == value).float().mean()
+    return log_prob_mean, np.array(
+        (log_prob_mean.cpu().detach().numpy(), accuracy.cpu().detach().numpy()),
+        dtype=[('log_prob', 'float32'), ('accuracy', 'float32')])
+
+
+class TrainingLoopInfo:
+    def __init__(self):
+        self.trainable = None
+        self.epoch_num = None
+        self.batch_num = None
+        self.batch_metrics = None
+        self.metrics_history = None
+        self.batch_objective_fn = None
+
+
+def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, batch_end_callback=None,
+          epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None, epoch_regularizer=False):
+    training_loop_info = TrainingLoopInfo()
+    if dummy_run:
+        dataset = torch.utils.data.Subset(dataset, range(self.batch_size))
+    dataloader = torch.utils.data.DataLoader(dataset,
+        batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
+        drop_last=True)
+    opt = torch.optim.Adam(trainable.parameters(), maximize=True, lr=.001)
+    if use_scheduler:
+        scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler)
+    else:
+        scheduler = None
+    training_loop_info.batch_num = 0
+    training_loop_info.trainable = trainable
+    training_loop_info.batch_objective_fn = batch_objective_fn
+    for training_loop_info.epoch_num in range(max_epoch):
+        print("Epoch: ", training_loop_info.epoch_num)
+        training_loop_info.metrics_history = []
+        for (_, batch) in enumerate(dataloader):
+            trainable.zero_grad()
+            objective, training_loop_info.batch_metrics = batch_objective_fn(trainable, batch)
+            training_loop_info.metrics_history.append(training_loop_info.batch_metrics)
+            if epoch_regularizer is True:
+                objective += trainable.epoch_regularizer_penalty(batch) / (training_loop_info.epoch_num+1)
+            objective.backward()
+            opt.step()
+            training_loop_info.batch_num += 1
+            if batch_end_callback is not None:
+                batch_end_callback(training_loop_info)
+        if epoch_end_callback is not None:
+            epoch_end_callback(training_loop_info)
+        if model_path is not None:
+            torch.save(trainable.state_dict(), model_path)
+        if scheduler:
+            scheduler.step()

@@ -9,6 +9,7 @@ inspect any trainer state for logging.
 
 
 import numpy as np
+import numpy.lib.recfunctions as np_recfunctions
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -33,21 +34,20 @@ def make_labelled_images_grid(images, labels):
         raise RuntimeError(f"images batch shape is {images.shape[0]} expected 25.")
     if len(labels) != 25:
         raise RuntimeError(f"len(labels) is {len(labels)} expected 25.")
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(10, 10))
     for i in range(25):
         # Start next subplot.
         plt.subplot(5, 5, i + 1, title=labels[i])
         plt.xticks([])
         plt.yticks([])
         plt.grid(False)
-        image = None
         num_channels = images[i].shape[0]
         if num_channels == 1:
             image = images[i][0]
             cmap = 'gray'
         else:
             if num_channels == 3:
-                image = images[i].permute(1,2,0)
+                image = images[i].permute(1, 2, 0)
                 cmap = None
             else:
                 raise ValueError(f"Unknow image type with num_channels={num_channels}")
@@ -60,7 +60,7 @@ def make_labelled_images_grid(images, labels):
     return data[:, :, :3].transpose(2, 0, 1)
 
 
-class TBClassifyImages():
+class TBClassifyImages:
     """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
     images should be a tensor of batch size 25.
     categories should be a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
@@ -79,16 +79,16 @@ class TBClassifyImages():
         self.images = images
         self.categories = categories
 
-    def __call__(self, trainer):
-        classifier = trainer.trainable
+    def __call__(self, training_loop_info):
+        classifier = training_loop_info.trainable
         label_indices = classifier(self.images).sample()
         labels = [self.categories[idx.to("cpu").item()] for idx in label_indices]
         labelled_images = make_labelled_images_grid(self.images, labels)
         if self.tb_writer is not None:
-            self.tb_writer.add_image(self.tb_name, labelled_images, trainer.epoch)
+            self.tb_writer.add_image(self.tb_name, labelled_images, training_loop_info.epoch_num)
 
 
-class TBSampleImages():
+class TBSampleImages:
     """Creates a 4x4 grid of images by sampling the trainable.
 
     >>> callback = TBSampleImages(None, "")
@@ -102,14 +102,14 @@ class TBSampleImages():
         self.tb_writer = tb_writer
         self.tb_name = tb_name
 
-    def __call__(self, trainer):
-        imglist = trainer.trainable.sample([16])
+    def __call__(self, training_loop_info):
+        imglist = training_loop_info.trainable.sample([16])
         grid_image = make_grid(imglist, padding=10, nrow=4, value_range=(0.0, 1.0))
         if self.tb_writer is not None:
-            self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
+            self.tb_writer.add_image(self.tb_name, grid_image, training_loop_info.epoch_num)
 
 
-class TBConditionalImages():
+class TBConditionalImages:
     """Produces a num_labels x 2 grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
        Suitable for trainables that are Layer objects accepting a one hot vector
@@ -127,89 +127,64 @@ class TBConditionalImages():
         self.tb_name = tb_name
         self.num_labels = num_labels
 
-    def __call__(self, trainer):
+    def __call__(self, training_loop_info):
         sample_size = 2
         identity = torch.eye(self.num_labels)
-        images = trainer.trainable(identity).sample([sample_size])
+        images = training_loop_info.trainable(identity).sample([sample_size])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
         if self.tb_writer is not None:
-            self.tb_writer.add_image(self.tb_name, grid_image, trainer.epoch)
+            self.tb_writer.add_image(self.tb_name, grid_image, training_loop_info.epoch_num)
 
 
-class TBBatchLogProb():
-    """Logs the batch log_prob.
-       As it applies to the trainer, not the trainable, it is applicable to either
-       Layer or Distribution trainables.
-    """
-    # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name):
+def tb_log_metrics(tb_writer, tb_name, metrics, step):
+    for key in metrics.dtype.fields.keys():
+        tb_writer.add_scalar(tb_name + "_" + key, metrics[key], step)
+
+
+def reduce_metrics_history(metrics_history):
+    keys = metrics_history[-1].dtype.fields.keys()
+    stacked_history = np_recfunctions.stack_arrays(metrics_history)
+    metric_means = [stacked_history[key].mean() for key in keys]
+    metrics_epoch = np.array(tuple(metric_means), dtype=metrics_history[-1].dtype)
+    return metrics_epoch
+
+
+class TBBatchLogMetrics:
+    def __init__(self, tb_writer):
         self.tb_writer = tb_writer
-        self.tb_name = tb_name
 
-    def __call__(self, trainer):
-        self.tb_writer.add_scalar(self.tb_name, trainer.log_prob_item, trainer.batch_num)
+    def __call__(self, training_loop_info):
+        tb_log_metrics(self.tb_writer, "batch", training_loop_info.batch_metrics, training_loop_info.batch_num)
 
 
-class TBEpochLogProb():
-    """Logs the total log_prob for the epoch.
-       As it applies to the trainer, not the trainable, it is applicable to either
-       Layer or Distribution trainables.
-    """
-    # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name):
+class TBEpochLogMetrics:
+    def __init__(self, tb_writer):
         self.tb_writer = tb_writer
-        self.tb_name = tb_name
 
-    def __call__(self, trainer):
-        self.tb_writer.add_scalar(self.tb_name,
-            trainer.total_log_prob/trainer.batch_len, trainer.epoch)
+    def __call__(self, training_loop_info):
+        metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
+        tb_log_metrics(self.tb_writer, "train_epoch", metrics_epoch, training_loop_info.epoch_num)
 
 
-class TBDatasetMetricsLogging():
+class TBDatasetMetricsLogging:
     def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
         self.tb_writer = tb_writer
         self.tb_name = tb_name
         self.batch_size = batch_size
         self.dataset = dataset
 
-    def __call__(self, trainer):
-        dataloader = DataLoader(self.dataset, collate_fn=None,generator=torch.Generator(device=torch.get_default_device()),
+    def __call__(self, training_loop_info):
+        dataloader = DataLoader(self.dataset, collate_fn=None,
+            generator=torch.Generator(device=torch.get_default_device()),
             batch_size=self.batch_size, shuffle=True, drop_last=True)
         dataset_iter = iter(dataloader)
-        batch = next(dataset_iter)
-        metrics = self.metric(trainer, batch)
-        num_batches = 1
+        metrics_history = []
         for batch in dataset_iter:
-            metrics += self.metric(trainer, batch)
-            num_batches += 1
-        self.log_metrics(metrics, trainer, num_batches)
-
-    def log_metrics(self, metrics, trainer, num_batches):  # This is default is there is just 1 metric
-        self.tb_writer.add_scalar(self.tb_name, metrics/num_batches, trainer.epoch)
-
-
-class TBDatasetLogProb(TBDatasetMetricsLogging):
-    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
-        super().__init__(tb_writer, tb_name, dataset, batch_size)
-
-    def metric(self, trainer, batch):
-        return trainer.batch_log_prob(batch).mean()
-
-
-class TBDatasetAccuracy(TBDatasetMetricsLogging):
-    """This is for classification trainables, ie Layer trainables which return
-       a Categorical distribution, and returns percentage accuracy over
-       a dataset, presumably validation_dataset.
-    """
-    # pylint: disable=R0903
-    def __init__(self, tb_writer, tb_name, dataset, batch_size=32):
-        super().__init__(tb_writer, tb_name, dataset, batch_size)
-
-    def metric(self, trainer, batch):
-        correct = (trainer.trainable(batch[0]).sample() \
-                    == batch[1]).float()
-        return correct.float().mean()
+            log_prob, batch_metrics = training_loop_info.batch_objective_fn(training_loop_info.trainable, batch)
+            metrics_history.append(batch_metrics)
+        metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
+        tb_log_metrics(self.tb_writer, self.tb_name + "_epoch", metrics_epoch, training_loop_info.epoch_num)
 
 
 def callback_compose(list_callbacks):

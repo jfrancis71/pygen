@@ -25,16 +25,13 @@ dataset = datasets.MNIST(ns.datasets_folder, train=True, download=False, transfo
 train_dataset, validation_dataset = random_split(dataset, [50000, 10000])
 torch.set_default_device(ns.device)
 tb_writer = SummaryWriter(ns.tb_folder)
-epoch_end_callback = callbacks.callback_compose([
+epoch_end_callbacks = callbacks.callback_compose([
     callbacks.TBConditionalImages(tb_writer, "conditional_generated_images", num_labels=10),
-    callbacks.TBEpochLogProb(tb_writer, "train_epoch_log_prob"),
-    callbacks.TBDatasetLogProb(tb_writer, "validation_log_prob",
-        validation_dataset)
+    callbacks.TBEpochLogMetrics(tb_writer),
+    callbacks.TBDatasetMetricsLogging(tb_writer, "validation", validation_dataset)
     ])
 conditional_digit_distribution = nn.Sequential(nn.Linear(10, 1*28*28),
     bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28]))
-train.LayerTrainer(
-    conditional_digit_distribution,
-    train_dataset,
-    batch_end_callback=callbacks.TBBatchLogProb(tb_writer, "batch_log_prob"),
-    epoch_end_callback=epoch_end_callback, reverse_inputs=True, dummy_run=ns.dummy_run, num_classes=10).train()
+train.train(conditional_digit_distribution, train_dataset, train.OneHotLayerTrainer(10),
+    batch_end_callback=callbacks.TBBatchLogMetrics(tb_writer),
+    epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run)
