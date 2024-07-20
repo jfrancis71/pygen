@@ -64,7 +64,7 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
           epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None, epoch_regularizer=False):
     training_loop_info = TrainingLoopInfo()
     if dummy_run:
-        dataset = torch.utils.data.Subset(dataset, range(self.batch_size))
+        dataset = torch.utils.data.Subset(dataset, range(batch_size))
     dataloader = torch.utils.data.DataLoader(dataset,
         batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
         drop_last=True)
