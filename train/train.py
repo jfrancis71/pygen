@@ -28,15 +28,13 @@ def rm_scheduler(epoch):
     return 1 / math.sqrt(1 + epoch)
 
 
-class OneHotLayerTrainer:
-    def __init__(self, num_classes):
-        self.num_classes = num_classes
-
-    def __call__(self, trainable, batch):
-        conditional = torch.nn.functional.one_hot(batch[1], self.num_classes).float()
+def one_hot_trainer(num_classes):
+    def one_hot_t(trainable, batch):
+        conditional = torch.nn.functional.one_hot(batch[1], num_classes).float()
         distribution = trainable(conditional)
         log_prob_mean = (distribution.log_prob(batch[0])).mean()
         return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
+    return one_hot_t
 
 
 def classifier_trainer(trainable, batch):

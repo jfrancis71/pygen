@@ -31,7 +31,7 @@ epoch_end_callbacks = callbacks.callback_compose([
     callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset)
     ])
 conditional_digit_distribution = nn.Sequential(nn.Linear(10, 1*28*28),
-    bernoulli_layer.IndependentBernoulli(event_shape=[1,28,28]))
-train.train(conditional_digit_distribution, train_dataset, train.OneHotLayerTrainer(10),
+    bernoulli_layer.IndependentBernoulli(event_shape=[1, 28, 28]))
+train.train(conditional_digit_distribution, train_dataset, train.one_hot_trainer(10),
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
     epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run)

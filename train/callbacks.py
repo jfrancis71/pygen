@@ -79,7 +79,6 @@ def tb_classify_images(tb_writer, tb_name, images, categories):
         labelled_images = make_labelled_images_grid(images, labels)
         if tb_writer is not None:
             tb_writer.add_image(tb_name, labelled_images, training_loop_info.epoch_num)
-
     return cb_tb_classify_images
 
 
@@ -104,7 +103,6 @@ def tb_conditional_images(tb_writer, tb_name, num_labels):
         grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
         if tb_writer is not None:
             tb_writer.add_image(tb_name, grid_image, training_loop_info.epoch_num)
-
     return cb_tb_conditional_images
 
 
@@ -130,7 +128,6 @@ def tb_epoch_log_metrics(tb_writer):
     def cb_tb_epoch_log_metrics(training_loop_info):
         metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
         tb_log_metrics(tb_writer, "train_epoch", metrics_epoch, training_loop_info.epoch_num)
-
     return cb_tb_epoch_log_metrics
 
 
@@ -146,7 +143,6 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
             metrics_history.append(batch_metrics)
         metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
         tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, training_loop_info.epoch_num)
-
     return cb_tb_dataset_metrics_logging
 
 
