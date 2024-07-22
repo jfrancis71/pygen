@@ -10,7 +10,15 @@ import torch
 
 class QuantizedDistribution:
     """Represents a continuous distribution on interval (0,1) which has been
-       discretized into num_buckets
+    discretized into num_buckets.
+    >>> qd = QuantizedDistribution(torch.zeros([10]))
+    >>> qd.log_prob(torch.tensor(0.75)).shape
+    torch.Size([])
+    >>> qd = QuantizedDistribution(torch.zeros([7, 10]))
+    >>> qd.batch_shape
+    torch.Size([7])
+    >>> qd.sample([3]).shape
+    torch.Size([3, 7])
     """
     def __init__(self, logits):
         self.logits = logits
@@ -30,3 +38,7 @@ class QuantizedDistribution:
         floor = Categorical(logits=self.logits).sample(sample_shape)/self.num_buckets
         samples = floor + torch.rand_like(floor)/(self.num_buckets*2.0)  # pylint: disable=E1101
         return samples
+
+
+import doctest
+doctest.testmod()

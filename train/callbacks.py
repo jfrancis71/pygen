@@ -69,17 +69,17 @@ def tb_classify_images(tb_writer, tb_name, images, categories):
     >>> dataset_class_labels = [str(category) for category in range(10)]
     >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
     >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
-    >>> training_loop_info = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
-    >>> callback(training_loop_info)
+    >>> trainer_state = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
+    >>> callback(trainer_state)
     """
-    def cb_tb_classify_images(training_loop_info):
-        classifier = training_loop_info.trainable
+    def _fn(trainer_state):
+        classifier = trainer_state.trainable
         label_indices = classifier(images).sample()
         labels = [categories[idx.to("cpu").item()] for idx in label_indices]
         labelled_images = make_labelled_images_grid(images, labels)
         if tb_writer is not None:
-            tb_writer.add_image(tb_name, labelled_images, training_loop_info.epoch_num)
-    return cb_tb_classify_images
+            tb_writer.add_image(tb_name, labelled_images, trainer_state.epoch_num)
+    return _fn
 
 
 def tb_conditional_images(tb_writer, tb_name, num_labels):
@@ -92,23 +92,24 @@ def tb_conditional_images(tb_writer, tb_name, num_labels):
 
     >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
     >>> callback = tb_conditional_images(None, "", 10)
-    >>> trainer = type('Trainer', (object,), {'trainable': trainable})()
-    >>> callback(trainer)
+    >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
+    >>> callback(trainer_state)
     """
-    def cb_tb_conditional_images(training_loop_info):
+    def _fn(trainer_state):
         sample_size = 2
         identity = torch.eye(num_labels)
-        images = training_loop_info.trainable(identity).sample([sample_size])
+        images = trainer_state.trainable(identity).sample([sample_size])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
         if tb_writer is not None:
-            tb_writer.add_image(tb_name, grid_image, training_loop_info.epoch_num)
-    return cb_tb_conditional_images
+            tb_writer.add_image(tb_name, grid_image, trainer_state.epoch_num)
+    return _fn
 
 
 def tb_log_metrics(tb_writer, tb_name, metrics, step):
     for key in metrics.dtype.fields.keys():
-        tb_writer.add_scalar(tb_name + "_" + key, metrics[key], step)
+        if tb_writer is not None:
+            tb_writer.add_scalar(tb_name + "_" + key, metrics[key], step)
 
 
 def reduce_metrics_history(metrics_history):
@@ -120,29 +121,41 @@ def reduce_metrics_history(metrics_history):
 
 
 def tb_batch_log_metrics(tb_writer):
-    return lambda training_loop_info: tb_log_metrics(tb_writer, "batch", training_loop_info.batch_metrics,
-        training_loop_info.batch_num)
+    """Tensorboard log the trainer_state's batch_metrics with the batch number."""
+    return lambda trainer_state: tb_log_metrics(tb_writer, "batch", trainer_state.batch_metrics,
+        trainer_state.batch_num)
 
 
 def tb_epoch_log_metrics(tb_writer):
-    def cb_tb_epoch_log_metrics(training_loop_info):
-        metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
-        tb_log_metrics(tb_writer, "train_epoch", metrics_epoch, training_loop_info.epoch_num)
-    return cb_tb_epoch_log_metrics
+    """Tensorboard log the mean of each of the metrics in trainer_state's metrics_history with the epoch number.
+    """
+    def _fn(trainer_state):
+        metrics_epoch = reduce_metrics_history(trainer_state.metrics_history)
+        tb_log_metrics(tb_writer, "train_epoch", metrics_epoch, trainer_state.epoch_num)
+    return _fn
 
 
 def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
-    def cb_tb_dataset_metrics_logging(training_loop_info):
+    """Runs the trainable over a dataset (eg validation) and logs the resulting metrics.
+    >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+    >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
+    >>> trainer_state.batch_objective_fn = train.classifier_objective
+    >>> trainer_state.epoch_num = 0
+    >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
+    >>> dataset = torch.utils.data.StackDataset(images, labels)
+    >>> tb_dataset_metrics_logging(None, "", dataset)(trainer_state)
+    """
+    def cb_tb_dataset_metrics_logging(trainer_state):
         dataloader = DataLoader(dataset, collate_fn=None,
             generator=torch.Generator(device=torch.get_default_device()),
             batch_size=batch_size, shuffle=True, drop_last=True)
         dataset_iter = iter(dataloader)
         metrics_history = []
         for batch in dataset_iter:
-            log_prob, batch_metrics = training_loop_info.batch_objective_fn(training_loop_info.trainable, batch)
+            log_prob, batch_metrics = trainer_state.batch_objective_fn(trainer_state.trainable, batch)
             metrics_history.append(batch_metrics)
-        metrics_epoch = reduce_metrics_history(training_loop_info.metrics_history)
-        tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, training_loop_info.epoch_num)
+        metrics_epoch = reduce_metrics_history(metrics_history)
+        tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, trainer_state.epoch_num)
     return cb_tb_dataset_metrics_logging
 
 

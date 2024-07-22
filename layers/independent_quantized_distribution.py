@@ -10,8 +10,15 @@ class IndependentQuantizedDistribution(torch.nn.Module):
     """IndependentQuantizedDistribution layer accepts a tensor describing the logits parameters
        of the quantized variable components and returns an independent quantized distribution.
        You need to specify event_shape to indicate what a sample from this distribution
-       looks like, eg event_shape = [3,32,32] would describe a CIFAR10 image where all pixels
+       looks like, e.g. event_shape = [3,32,32] would describe a CIFAR10 image where all pixels
        are independent quantized variables.
+
+    >>> independent_qd_layer = IndependentQuantizedDistribution([3, 32, 32], num_buckets=10)
+    >>> independent_qd_distribution = independent_qd_layer(torch.rand([7, 3*32*32*10]))
+    >>> independent_qd_distribution.batch_shape
+    torch.Size([7])
+    >>> independent_qd_distribution.sample([2]).shape
+    torch.Size([2, 7, 3, 32, 32])
     """
     def __init__(self, event_shape, num_buckets=8):
         super().__init__()
@@ -23,10 +30,14 @@ class IndependentQuantizedDistribution(torch.nn.Module):
         return math.prod(self.event_shape)*self.num_buckets
 
     # pylint: disable=C0116
-    def forward(self, logits):  # logits, eg. B, Y, X, P where batch_shape would be B, Y, X
+    def forward(self, logits):  # logits, e.g. B, Y, X, P where batch_shape would be B, Y, X
         batch_shape = list(logits.shape[:-1])
         reshape_logits = logits.reshape(batch_shape + self.event_shape + [self.num_buckets])
         base_distribution = qd.QuantizedDistribution(logits=reshape_logits)
         return torch.distributions.independent.Independent(
             base_distribution,
             reinterpreted_batch_ndims=len(self.event_shape))
+
+
+import doctest
+doctest.testmod()

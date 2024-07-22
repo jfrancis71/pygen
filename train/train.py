@@ -12,6 +12,8 @@ import math
 import numpy as np
 import torch
 import torch.optim.lr_scheduler
+import torch.nn as nn
+import pygen.layers.categorical as layers_categorical
 
 
 class DevicePlacement:
@@ -28,27 +30,39 @@ def rm_scheduler(epoch):
     return 1 / math.sqrt(1 + epoch)
 
 
-def one_hot_trainer(num_classes):
-    def one_hot_t(trainable, batch):
-        conditional = torch.nn.functional.one_hot(batch[1], num_classes).float()
-        distribution = trainable(conditional)
-        log_prob_mean = (distribution.log_prob(batch[0])).mean()
-        return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
-    return one_hot_t
-
-
-def classifier_trainer(trainable, batch):
-    conditional = batch[0]
-    value = batch[1]
-    distribution = trainable(conditional)
-    log_prob_mean = (distribution.log_prob(value)).mean()
-    accuracy = (distribution.sample() == value).float().mean()
+def classifier_objective(trainable, batch):
+    """Computes trainable(batch[0]).log_prob(batch[1])
+    returning a tuple of this as 1st element,
+    2nd element is metrics containing log_prob and accuracy."""
+    distribution = trainable(batch[0])
+    log_prob_mean = (distribution.log_prob(batch[1])).mean()
+    accuracy = (distribution.sample() == batch[1]).float().mean()
     return log_prob_mean, np.array(
         (log_prob_mean.cpu().detach().numpy(), accuracy.cpu().detach().numpy()),
         dtype=[('log_prob', 'float32'), ('accuracy', 'float32')])
 
 
-class TrainingLoopInfo:
+def layer_objective(reverse_inputs=False, num_classes=None):
+    """Computes trainable(batch[0]).log_prob(batch[1]) (reversed order if reverse_inputs is True)
+    returns this as the 1st element of a tuple, second element is metrics containing the same.
+    The input to the trainable will be one'hotified if num_classes is not None.
+    trainable is a layer object taking a tensor and returning a distribution.
+    """
+    def lambda_layer_objective(trainable, batch):
+        if reverse_inputs == False:
+            conditional, value = batch[0], batch[1]
+        else:
+            conditional, value = batch[1], batch[0]
+        if num_classes is not None:
+            conditional = torch.nn.functional.one_hot(conditional, num_classes).float()
+        distribution = trainable(conditional)
+        log_prob_mean = (distribution.log_prob(value)).mean()
+        return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
+    return lambda_layer_objective
+
+
+class TrainerState:
+    """Maintains trainer state so that it is accessible from callbacks."""
     def __init__(self):
         self.trainable = None
         self.epoch_num = None
@@ -60,7 +74,14 @@ class TrainingLoopInfo:
 
 def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, batch_end_callback=None,
           epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None, epoch_regularizer=False):
-    training_loop_info = TrainingLoopInfo()
+    """trains a trainable.
+    >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+    >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
+    >>> dataset = torch.utils.data.StackDataset(images, labels)
+    >>> train(trainable, dataset, classifier_objective, max_epoch=1)
+    Epoch: 0
+    """
+    trainer_state = TrainerState()
     if dummy_run:
         dataset = torch.utils.data.Subset(dataset, range(batch_size))
     dataloader = torch.utils.data.DataLoader(dataset,
@@ -71,26 +92,30 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
         scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler)
     else:
         scheduler = None
-    training_loop_info.batch_num = 0
-    training_loop_info.trainable = trainable
-    training_loop_info.batch_objective_fn = batch_objective_fn
-    for training_loop_info.epoch_num in range(max_epoch):
-        print("Epoch: ", training_loop_info.epoch_num)
-        training_loop_info.metrics_history = []
+    trainer_state.batch_num = 0
+    trainer_state.trainable = trainable
+    trainer_state.batch_objective_fn = batch_objective_fn
+    for trainer_state.epoch_num in range(max_epoch):
+        print("Epoch:", trainer_state.epoch_num)
+        trainer_state.metrics_history = []
         for (_, batch) in enumerate(dataloader):
             trainable.zero_grad()
-            objective, training_loop_info.batch_metrics = batch_objective_fn(trainable, batch)
-            training_loop_info.metrics_history.append(training_loop_info.batch_metrics)
+            objective, trainer_state.batch_metrics = batch_objective_fn(trainable, batch)
+            trainer_state.metrics_history.append(trainer_state.batch_metrics)
             if epoch_regularizer is True:
-                objective += trainable.epoch_regularizer_penalty(batch) / (training_loop_info.epoch_num+1)
+                objective += trainable.epoch_regularizer_penalty(batch) / (trainer_state.epoch_num+1)
             objective.backward()
             opt.step()
-            training_loop_info.batch_num += 1
+            trainer_state.batch_num += 1
             if batch_end_callback is not None:
-                batch_end_callback(training_loop_info)
+                batch_end_callback(trainer_state)
         if epoch_end_callback is not None:
-            epoch_end_callback(training_loop_info)
+            epoch_end_callback(trainer_state)
         if model_path is not None:
             torch.save(trainable.state_dict(), model_path)
         if scheduler:
             scheduler.step()
+
+
+import doctest
+doctest.testmod()
