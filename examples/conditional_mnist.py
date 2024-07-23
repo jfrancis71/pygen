@@ -20,10 +20,11 @@ parser.add_argument("--device", default="cpu")
 parser.add_argument("--dummy_run", action="store_true")
 ns = parser.parse_args()
 
+torch.set_default_device(ns.device)
 transform = transforms.Compose([transforms.ToTensor(), lambda x: (x > 0.5).float(), train.DevicePlacement()])
 dataset = datasets.MNIST(ns.datasets_folder, train=True, download=False, transform=transform)
-train_dataset, validation_dataset = random_split(dataset, [50000, 10000])
-torch.set_default_device(ns.device)
+train_dataset, validation_dataset = random_split(dataset, [50000, 10000],
+    generator=torch.Generator(device=torch.get_default_device()))
 tb_writer = SummaryWriter(ns.tb_folder)
 epoch_end_callbacks = callbacks.callback_compose([
     callbacks.tb_conditional_images(tb_writer, "conditional_generated_images", num_labels=10),

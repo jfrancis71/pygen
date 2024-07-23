@@ -23,6 +23,7 @@ parser.add_argument("--use_scheduler", action="store_true")
 parser.add_argument("--dummy_run", action="store_true")
 ns = parser.parse_args()
 
+torch.set_default_device(ns.device)
 transform = transforms.Compose([transforms.ToTensor(), train.DevicePlacement()])
 if ns.dataset == "mnist":
     dataset = datasets.MNIST(ns.datasets_folder, train=True, download=False, transform=transform)
@@ -36,8 +37,8 @@ elif ns.dataset == "cifar10":
     data_split = [45000, 5000]
 else:
     raise RuntimeError(f"{ns.dataset} not recognized.")
-train_dataset, validation_dataset = random_split(dataset, data_split)
-torch.set_default_device(ns.device)
+train_dataset, validation_dataset = random_split(dataset, data_split,
+    generator=torch.Generator(device=torch.get_default_device()))
 # Grab some example images to use in the tensorboard example classifications callback.
 example_train_images = next(iter(torch.utils.data.DataLoader(train_dataset, batch_size=25)))[0]
 example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset, batch_size=25)))[0]
