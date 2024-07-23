@@ -9,18 +9,27 @@ import torch
 
 
 class QuantizedDistribution:
-    """Represents a continuous distribution on interval (0,1) which has been
-    discretized into num_buckets.
-    >>> qd = QuantizedDistribution(torch.zeros([10]))
-    >>> qd.log_prob(torch.tensor(0.75)).shape
-    torch.Size([])
-    >>> qd = QuantizedDistribution(torch.zeros([7, 10]))
-    >>> qd.batch_shape
-    torch.Size([7])
-    >>> qd.sample([3]).shape
-    torch.Size([3, 7])
+    """A continuous distribution on interval (0,1) which has been discretized into num_buckets.
+
+    Example::
+
+        >>> qd = QuantizedDistribution(torch.zeros([10]))
+        >>> qd.log_prob(torch.tensor(0.75)).shape
+        torch.Size([])
+        >>> qd = QuantizedDistribution(torch.zeros([7, 10]))
+        >>> qd.batch_shape
+        torch.Size([7])
+        >>> qd.sample([3]).shape
+        torch.Size([3, 7])
+
+    Args:
+        logits (Tensor): event log probabilities (unnormalized)
     """
     def __init__(self, logits):
+        """
+
+        :param logits:
+        """
         self.logits = logits
         self.num_buckets = self.logits.shape[-1]
         self.event_shape = torch.Size([])  # pylint: disable=E1101

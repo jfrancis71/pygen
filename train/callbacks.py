@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-import torchvision
 from torchvision.utils import make_grid
 import pygen.layers.categorical as layers_categorical
 import pygen.layers.independent_bernoulli as layers_bernoulli
@@ -137,6 +136,7 @@ def tb_epoch_log_metrics(tb_writer):
 
 def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     """Runs the trainable over a dataset (eg validation) and logs the resulting metrics.
+
     >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
     >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
     >>> trainer_state.batch_objective_fn = train.classifier_objective
@@ -145,7 +145,7 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     >>> dataset = torch.utils.data.StackDataset(images, labels)
     >>> tb_dataset_metrics_logging(None, "", dataset)(trainer_state)
     """
-    def cb_tb_dataset_metrics_logging(trainer_state):
+    def _fn(trainer_state):
         dataloader = DataLoader(dataset, collate_fn=None,
             generator=torch.Generator(device=torch.get_default_device()),
             batch_size=batch_size, shuffle=True, drop_last=True)
@@ -156,7 +156,7 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
             metrics_history.append(batch_metrics)
         metrics_epoch = reduce_metrics_history(metrics_history)
         tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, trainer_state.epoch_num)
-    return cb_tb_dataset_metrics_logging
+    return _fn
 
 
 def callback_compose(list_callbacks):

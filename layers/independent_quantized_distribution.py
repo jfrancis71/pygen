@@ -7,18 +7,22 @@ import pygen.distributions.quantized_distribution as qd
 
 
 class IndependentQuantizedDistribution(torch.nn.Module):
-    """IndependentQuantizedDistribution layer accepts a tensor describing the logits parameters
-       of the quantized variable components and returns an independent quantized distribution.
-       You need to specify event_shape to indicate what a sample from this distribution
-       looks like, e.g. event_shape = [3,32,32] would describe a CIFAR10 image where all pixels
-       are independent quantized variables.
+    """Layer module returning an independent quantized distribution.
 
-    >>> independent_qd_layer = IndependentQuantizedDistribution([3, 32, 32], num_buckets=10)
-    >>> independent_qd_distribution = independent_qd_layer(torch.rand([7, 3*32*32*10]))
-    >>> independent_qd_distribution.batch_shape
-    torch.Size([7])
-    >>> independent_qd_distribution.sample([2]).shape
-    torch.Size([2, 7, 3, 32, 32])
+    Example::
+
+        >>> independent_qd_layer = IndependentQuantizedDistribution([3, 32, 32], num_buckets=10)
+        >>> independent_qd_distribution = independent_qd_layer(torch.rand([7, 3*32*32*10]))
+        >>> independent_qd_distribution.batch_shape
+        torch.Size([7])
+        >>> independent_qd_distribution.event_shape
+        torch.Size([3, 32, 32])
+        >>> independent_qd_distribution.sample([2]).shape
+        torch.Size([2, 7, 3, 32, 32])
+
+    Args:
+        event_shape (List): event shape of the returned distribution
+        num_buckets (Integer): Number of buckets to use in the quantized distribution
     """
     def __init__(self, event_shape, num_buckets=8):
         super().__init__()

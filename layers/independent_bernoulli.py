@@ -6,18 +6,16 @@ import torch
 
 
 class IndependentBernoulli(torch.nn.Module):
-    """IndependentBernoulli layer accepts a tensor describing the logits parameters of the
-       bernoulli variable components and returns an independent bernoulli distribution.
-       You need to specify event_shape to indicate what a sample from this distribution
-       looks like, e.g. event_shape = [1,28,28] would describe an MNIST image where all pixels
-       are independent bernoulli variables.
+    """Layer which accepts a tensor and returns an independent bernoulli probability distribution.
 
-    >>> independent_bernoulli_layer = IndependentBernoulli([3, 32, 32])
-    >>> independent_bernoulli_distribution = independent_bernoulli_layer(torch.rand([7, 3*32*32]))
-    >>> independent_bernoulli_distribution.batch_shape
-    torch.Size([7])
-    >>> independent_bernoulli_distribution.sample([5]).shape
-    torch.Size([5, 7, 3, 32, 32])
+    Example::
+
+        >>> independent_bernoulli_layer = IndependentBernoulli([3, 32, 32])
+        >>> independent_bernoulli_distribution = independent_bernoulli_layer(torch.rand([7, 3*32*32]))
+        >>> independent_bernoulli_distribution.batch_shape
+        torch.Size([7])
+        >>> independent_bernoulli_distribution.sample([5]).shape
+        torch.Size([5, 7, 3, 32, 32])
     """
     def __init__(self, event_shape):
         super().__init__()

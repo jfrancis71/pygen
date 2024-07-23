@@ -7,11 +7,19 @@ import torch.nn.functional as F
 
 
 class ClassifierNet(nn.Module):
-    """Simple Classifier Neural Net, can be configured to accept MNIST (1x28x28) or
-    CIFAR10 (3x32x32) tensors. Outputs categorical distribution over num_classes states.
-    >>> classifier_net = ClassifierNet(True, num_classes=8)
-    >>> classifier_net(torch.rand([32, 1, 28, 28])).shape
-    torch.Size([32, 8])
+    """A simple classifier type neural net.
+
+    Can be configured to accept MNIST or CIFAR10 sized input tensors.
+
+    Example::
+
+        >>> classifier_net = ClassifierNet(True, num_classes=8)
+        >>> classifier_net(torch.rand([32, 1, 28, 28])).shape
+        torch.Size([32, 8])
+
+    Args:
+        mnist (Bool): If true accept MNIST shaped tensor, otherwise CIFAR10
+        num_classes (Integer): size of output tensor
     """
     def __init__(self, mnist, num_classes=10):
         super().__init__()

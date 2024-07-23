@@ -75,6 +75,7 @@ class TrainerState:
 def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, batch_end_callback=None,
           epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None, epoch_regularizer=False):
     """trains a trainable.
+
     >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
     >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
     >>> dataset = torch.utils.data.StackDataset(images, labels)
