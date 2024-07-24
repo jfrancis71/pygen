@@ -104,7 +104,7 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
             objective, trainer_state.batch_metrics = batch_objective_fn(trainable, batch)
             trainer_state.metrics_history.append(trainer_state.batch_metrics)
             if epoch_regularizer is True:
-                objective += trainable.epoch_regularizer_penalty(batch) / (trainer_state.epoch_num+1)
+                objective -= trainable.epoch_regularizer_penalty(batch) / (trainer_state.epoch_num+1)
             objective.backward()
             opt.step()
             trainer_state.batch_num += 1
