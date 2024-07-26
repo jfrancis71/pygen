@@ -1,7 +1,7 @@
 # pygen
 Provides a training loop for PyTorch, plus some distribution and layer objects and callbacks for monitoring the training session.
 
-pygen supports training either a Distribution object or a layer object. A distribution object is an object with log_prob and sample methods. A layer object is a callable which accepts a tensor and returns a Distribution object.
+pygen supports training either a Distribution object or a layer object. A distribution object is an object with log_prob and sample methods. A layer object is (generally) a nn.Module, but instead of accepting a tensor and returning a tensor, it accepts a tensor and returns a probability distribution.
 
 Distribution objects follow the PyTorch Distributions (https://pytorch.org/docs/stable/distributions.html) conventions which were in turn were based on the TensorFlow Probability Distributions package (https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Distribution)
 
@@ -14,15 +14,15 @@ To train an mnist classifier:
 
 ```
 digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_categorical.Categorical())
-train.LayerTrainer(digit_recognizer.to(ns.device), train_dataset).train()
+train.train(classifier, train_dataset, train.classifier_objective)
 ```
 
 
 Full code examples:
 
-./examples/mnist_classifier.py: Classic MNIST classifier
+./examples/classifier.py: Classic classifier (cmd line option to train either MNIST of CIFAR10)
 
-./examples/cifar10_classifier.py: Classic CIFAR10 classifier
+./examples/conditional_mnist.py: Simple generative model over MNIST digits conditioned on the digit label.
 
 
 ## Layers
@@ -49,15 +49,10 @@ class DigitRecognizer(nn.Module):
 
 digit_recognizer = DigitRecognizer()
 ```
-The use of layer_categorical.Categorical() in the first approach is purely for convenience, either can be passed into a LayerTrainer. It is your personal preference as to which to use.
+The use of layer_categorical.Categorical() in the first approach is purely for convenience. It is your personal preference as to which to use.
 
 Take special care when using Layers in spatial tensors, i.e. tensors of form BxYxXxC. Layers, as in Tensorflow interpret the last tensor component as the parameters of the distribution. This is fine for a layer such as BxC and will work the same way in both frameworks. But note the Tensorflow format for spatial layers is BxYxXxC where layers would interpret the C components as the parameters of a probability distribution with batch shape BxYxX. Whereas the PyTorch format is BxCxYxX which you will probably want to permute to BxYxXxC. If you leave it as BxCxYxX then X will be treated as the distribution parameters with batch shape BxCxY which is probably not what you want.
 
-## Trainers
-
-There are two trainers: train.DistributionTrainer, train.LayerTrainer
-
-They both expect a dataset of tuples. The DistributionTrainer optimizes the distribution where the 1st element is the target. The LayerTrainer assumes the 1st element is the variable to be condition on (eg the image in the case of the MNIST dataset) and the 2nd element is the target distribution (eg the label in the case of the MNIST dataset).
 
 ## Installation and Setup
 
