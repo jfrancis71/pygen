@@ -11,15 +11,14 @@ class ClassifierNet(nn.Module):
 
     Can be configured to accept MNIST or CIFAR10 sized input tensors.
 
-    Example::
+    Args:
+        mnist (Bool): If true accept MNIST shaped tensor, otherwise CIFAR10.
+        num_classes (Integer): size of output tensor.
 
+    Example:
         >>> classifier_net = ClassifierNet(True, num_classes=8)
         >>> classifier_net(torch.rand([32, 1, 28, 28])).shape
         torch.Size([32, 8])
-
-    Args:
-        mnist (Bool): If true accept MNIST shaped tensor, otherwise CIFAR10
-        num_classes (Integer): size of output tensor
     """
     def __init__(self, mnist, num_classes=10):
         super().__init__()
@@ -34,7 +33,6 @@ class ClassifierNet(nn.Module):
         self.fc1 = nn.Linear(mid_channels, 128)
         self.fc2 = nn.Linear(128, num_classes)
 
-    # pylint: disable=C0103,C0116
     def forward(self, x):
         x = self.conv1(x)
         x = F.relu(x)

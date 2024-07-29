@@ -9,8 +9,11 @@ import pygen.distributions.quantized_distribution as qd
 class IndependentQuantizedDistribution(torch.nn.Module):
     """Layer module returning an independent quantized distribution.
 
-    Example::
+    Args:
+        event_shape (List): event shape of the returned distribution.
+        num_buckets (Integer): Number of buckets to use in the quantized distribution.
 
+    Example:
         >>> independent_qd_layer = IndependentQuantizedDistribution([3, 32, 32], num_buckets=10)
         >>> independent_qd_distribution = independent_qd_layer(torch.rand([7, 3*32*32*10]))
         >>> independent_qd_distribution.batch_shape
@@ -19,10 +22,6 @@ class IndependentQuantizedDistribution(torch.nn.Module):
         torch.Size([3, 32, 32])
         >>> independent_qd_distribution.sample([2]).shape
         torch.Size([2, 7, 3, 32, 32])
-
-    Args:
-        event_shape (List): event shape of the returned distribution
-        num_buckets (Integer): Number of buckets to use in the quantized distribution
     """
     def __init__(self, event_shape, num_buckets=8):
         super().__init__()

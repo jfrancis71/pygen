@@ -9,8 +9,7 @@ import torch
 class Categorical(torch.nn.Module):
     """Layer which accepts a tensor and returns a Categorical probability distribution.
 
-    Example::
-
+    Example:
         >>> categorical_layer = Categorical()
         >>> distribution = categorical_layer(torch.rand([7, 10]))
         >>> distribution.batch_shape

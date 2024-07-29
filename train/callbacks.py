@@ -21,13 +21,19 @@ import pygen.train.train as train
 
 
 def make_labelled_images_grid(images, labels):
-    """make a grid of labelled images.
-    images is a list or tensor of 25 images, labels is a list of 25 strings.
-    returns an image tensor of labelled images organised into 5x5 grid.
+    """Make a grid of labelled images.
 
-    >>> images, labels = torch.zeros(25, 1, 28, 28), [str(idx) for idx in range(25)]
-    >>> len(make_labelled_images_grid(images, labels).shape)
-    3
+    Args:
+        images: a list or tensor of 25 images
+        labels: a list of 25 strings.
+
+    Returns:
+        image tensor of labelled images organised into 5x5 grid.
+
+    Examples:
+        >>> images, labels = torch.zeros(25, 1, 28, 28), [str(idx) for idx in range(25)]
+        >>> len(make_labelled_images_grid(images, labels).shape)
+        3
     """
     if images.shape[0] != 25:
         raise RuntimeError(f"images batch shape is {images.shape[0]} expected 25.")
@@ -61,15 +67,18 @@ def make_labelled_images_grid(images, labels):
 
 def tb_classify_images(tb_writer, tb_name, images, categories):
     """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
-    images should be a tensor of batch size 25.
-    categories should be a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
 
-    >>> images = torch.ones([25, 1, 5, 5])
-    >>> dataset_class_labels = [str(category) for category in range(10)]
-    >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
-    >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
-    >>> trainer_state = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
-    >>> callback(trainer_state)
+    Args:
+        images: a tensor of batch size 25.
+        categories: a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
+
+    Examples:
+        >>> images = torch.ones([25, 1, 5, 5])
+        >>> dataset_class_labels = [str(category) for category in range(10)]
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+        >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
+        >>> trainer_state = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
+        >>> callback(trainer_state)
     """
     def _fn(trainer_state):
         classifier = trainer_state.trainable
@@ -89,10 +98,16 @@ def tb_conditional_images(tb_writer, tb_name, num_labels):
        eg a trainable accepting one hot vector with position 2 = 1, returning 1x28x28 probability distributions
        over digit 2.
 
-    >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
-    >>> callback = tb_conditional_images(None, "", 10)
-    >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
-    >>> callback(trainer_state)
+    Args:
+        tb_writer: SummaryWriter to write to.
+        tb_name: string to write to.
+        num_labels: number of class labels.
+
+    Examples:
+        >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
+        >>> callback = tb_conditional_images(None, "", 10)
+        >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
+        >>> callback(trainer_state)
     """
     def _fn(trainer_state):
         sample_size = 2
@@ -137,13 +152,14 @@ def tb_epoch_log_metrics(tb_writer):
 def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     """Runs the trainable over a dataset (eg validation) and logs the resulting metrics.
 
-    >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
-    >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
-    >>> trainer_state.batch_objective_fn = train.classifier_objective
-    >>> trainer_state.epoch_num = 0
-    >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
-    >>> dataset = torch.utils.data.StackDataset(images, labels)
-    >>> tb_dataset_metrics_logging(None, "", dataset)(trainer_state)
+    Examples:
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+        >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
+        >>> trainer_state.batch_objective_fn = train.classifier_objective
+        >>> trainer_state.epoch_num = 0
+        >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
+        >>> dataset = torch.utils.data.StackDataset(images, labels)
+        >>> tb_dataset_metrics_logging(None, "", dataset)(trainer_state)
     """
     def _fn(trainer_state):
         dataloader = DataLoader(dataset, collate_fn=None,

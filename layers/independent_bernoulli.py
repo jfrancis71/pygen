@@ -8,8 +8,10 @@ import torch
 class IndependentBernoulli(torch.nn.Module):
     """Layer which accepts a tensor and returns an independent bernoulli probability distribution.
 
-    Example::
+    Args:
+        event_shape (List): event shape of the returned distribution.
 
+    Example:
         >>> independent_bernoulli_layer = IndependentBernoulli([3, 32, 32])
         >>> independent_bernoulli_distribution = independent_bernoulli_layer(torch.rand([7, 3*32*32]))
         >>> independent_bernoulli_distribution.batch_shape
