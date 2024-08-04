@@ -90,8 +90,8 @@ def tb_classify_images(tb_writer, tb_name, images, categories):
     return _fn
 
 
-def tb_conditional_images(tb_writer, tb_name, num_labels):
-    """Produces a num_labels x 2 grid of images where each row is an image generated conditioned on
+def tb_conditional_images(tb_writer, tb_name, num_labels, num_samples=2):
+    """Produces a num_labels x num_samples grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
        Suitable for trainables that are Layer objects accepting a one hot vector
        and returning a probability distribution over an image.
@@ -110,11 +110,10 @@ def tb_conditional_images(tb_writer, tb_name, num_labels):
         >>> callback(trainer_state)
     """
     def _fn(trainer_state):
-        sample_size = 2
         identity = torch.eye(num_labels)
-        images = trainer_state.trainable(identity).sample([sample_size])
+        images = trainer_state.trainable(identity).sample([num_samples])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
-        grid_image = make_grid(imglist, padding=10, nrow=2, value_range=(0.0, 1.0))
+        grid_image = make_grid(imglist, padding=10, nrow=num_samples, value_range=(0.0, 1.0))
         if tb_writer is not None:
             tb_writer.add_image(tb_name, grid_image, trainer_state.epoch_num)
     return _fn
