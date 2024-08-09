@@ -13,7 +13,7 @@ import numpy as np
 import torch
 import torch.optim.lr_scheduler
 import torch.nn as nn
-import pygen.layers.categorical as layers_categorical
+import pygen.layers.independent_categorical as layer_categorical
 
 
 class DevicePlacement:
@@ -49,7 +49,7 @@ def layer_objective(reverse_inputs=False, num_classes=None):
     trainable is a layer object taking a tensor and returning a distribution.
     """
     def lambda_layer_objective(trainable, batch):
-        if reverse_inputs == False:
+        if reverse_inputs is False:
             conditional, value = batch[0], batch[1]
         else:
             conditional, value = batch[1], batch[0]
@@ -77,7 +77,7 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
     """trains a trainable.
 
     Examples:
-        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layer_categorical.IndependentCategorical(event_size=[]))
         >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
         >>> dataset = torch.utils.data.StackDataset(images, labels)
         >>> train(trainable, dataset, classifier_objective, max_epoch=1)

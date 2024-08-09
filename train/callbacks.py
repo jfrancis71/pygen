@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-import pygen.layers.categorical as layers_categorical
+import pygen.layers.independent_categorical as independent_categorical
 import pygen.layers.independent_bernoulli as layers_bernoulli
 import pygen.train.train as train
 
@@ -75,7 +75,7 @@ def tb_classify_images(tb_writer, tb_name, images, categories):
     Examples:
         >>> images = torch.ones([25, 1, 5, 5])
         >>> dataset_class_labels = [str(category) for category in range(10)]
-        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
         >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
         >>> trainer_state = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
         >>> callback(trainer_state)
@@ -152,7 +152,7 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     """Runs the trainable over a dataset (eg validation) and logs the resulting metrics.
 
     Examples:
-        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layers_categorical.Categorical())
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
         >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
         >>> trainer_state.batch_objective_fn = train.classifier_objective
         >>> trainer_state.epoch_num = 0

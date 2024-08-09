@@ -10,7 +10,7 @@ import torchvision.datasets as datasets
 from pygen.train import train
 from pygen.train import callbacks
 from pygen.neural_nets import classifier_net
-import pygen.layers.categorical as layer_categorical
+import pygen.layers.independent_categorical as layer_categorical
 
 
 parser = argparse.ArgumentParser(description='PyGen Classifier')
@@ -49,7 +49,7 @@ epoch_end_callbacks = callbacks.callback_compose([
     callbacks.tb_epoch_log_metrics(tb_writer),
     callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset),
     ])
-classifier = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=mnist), layer_categorical.Categorical())
+classifier = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=mnist), layer_categorical.IndependentCategorical(event_shape=[], num_classes=10))
 train.train(classifier, train_dataset, train.classifier_objective,
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
     epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run)
