@@ -15,9 +15,23 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
+from torchvision.utils import save_image
 import pygen.layers.independent_categorical as independent_categorical
 import pygen.layers.independent_bernoulli as layers_bernoulli
 import pygen.train.train as train
+
+
+def file_log_image(folder, filename, make_image_fn):
+    def _fn(trainer_state):
+        image = make_image_fn()
+        save_image(image, folder + "/" + filename + "_" + str(trainer_state.epoch_num) + ".png")
+    return _fn
+
+def tb_log_image(tb_writer, tb_name, make_image_fn):
+    def _fn(trainer_state):
+        image = make_image_fn()
+        tb_writer.add_image(tb_name, image, trainer_state.epoch_num)
+    return _fn
 
 
 def make_labelled_images_grid(images, labels):
@@ -62,35 +76,34 @@ def make_labelled_images_grid(images, labels):
     data = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
     width, height = canvas.get_width_height()
     data = np.array(data).reshape(height, width, 4)  # pylint: disable=E1121
-    return data[:, :, :3].transpose(2, 0, 1)
+    return torch.tensor(data[:, :, :3].transpose(2, 0, 1)).float()/255.
 
 
-def tb_classify_images(tb_writer, tb_name, images, categories):
+def demo_classify_images(classifier, images, categories):
     """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
 
     Args:
+        classifier: nn.Module accepting a tensor and returning a categorical distribution.
         images: a tensor of batch size 25.
         categories: a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
 
-    Examples:
+    Example:
         >>> images = torch.ones([25, 1, 5, 5])
         >>> dataset_class_labels = [str(category) for category in range(10)]
         >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
-        >>> callback = tb_classify_images(None, "", images, dataset_class_labels)
-        >>> trainer_state = type('TrainingLoopInfo', (object,), {'trainable': trainable})()
-        >>> callback(trainer_state)
+        >>> image_demo_fn = demo_classify_images(trainable, images, dataset_class_labels)
+        >>> len(image_demo_fn())
+        3
     """
-    def _fn(trainer_state):
-        classifier = trainer_state.trainable
+    def _fn():
         label_indices = classifier(images).sample()
         labels = [categories[idx.to("cpu").item()] for idx in label_indices]
         labelled_images = make_labelled_images_grid(images, labels)
-        if tb_writer is not None:
-            tb_writer.add_image(tb_name, labelled_images, trainer_state.epoch_num)
+        return labelled_images
     return _fn
 
 
-def tb_conditional_images(tb_writer, tb_name, num_labels, num_samples=2):
+def demo_conditional_images(trainable, num_labels, num_samples=2):
     """Produces a num_labels x num_samples grid of images where each row is an image generated conditioned on
        the corresponding class label, and there are two examples per row.
        Suitable for trainables that are Layer objects accepting a one hot vector
@@ -105,17 +118,16 @@ def tb_conditional_images(tb_writer, tb_name, num_labels, num_samples=2):
 
     Examples:
         >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
-        >>> callback = tb_conditional_images(None, "", 10)
-        >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
-        >>> callback(trainer_state)
+        >>> image_demo_fn = demo_conditional_images(trainable, 10, 2)
+        >>> len(image_demo_fn())
+        3
     """
-    def _fn(trainer_state):
+    def _fn():
         identity = torch.eye(num_labels)
-        images = trainer_state.trainable(identity).sample([num_samples])
+        images = trainable(identity).sample([num_samples])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=num_samples, value_range=(0.0, 1.0))
-        if tb_writer is not None:
-            tb_writer.add_image(tb_name, grid_image, trainer_state.epoch_num)
+        return grid_image
     return _fn
 
 

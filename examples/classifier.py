@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description='PyGen Classifier')
 parser.add_argument("--datasets_folder", default="~/datasets")
 parser.add_argument("--dataset", default="mnist")
 parser.add_argument("--tb_folder", default=None)
+parser.add_argument("--images_folder", default=None)
 parser.add_argument("--device", default="cpu")
 parser.add_argument("--max_epoch", default=10, type=int)
 parser.add_argument("--use_scheduler", action="store_true")
@@ -43,13 +44,23 @@ train_dataset, validation_dataset = random_split(dataset, data_split,
 example_train_images = next(iter(torch.utils.data.DataLoader(train_dataset, batch_size=25)))[0]
 example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset, batch_size=25)))[0]
 tb_writer = SummaryWriter(ns.tb_folder)
-epoch_end_callbacks = callbacks.callback_compose([
-    callbacks.tb_classify_images(tb_writer, "train_images", example_train_images, class_labels),
-    callbacks.tb_classify_images(tb_writer, "validation_images", example_valid_images, class_labels),
+classifier = torch.nn.Sequential(
+    classifier_net.ClassifierNet(mnist=mnist),
+    layer_categorical.IndependentCategorical(event_shape=[], num_classes=10))
+epoch_end_callbacks = [
+    callbacks.tb_log_image(tb_writer, "train_images",
+        callbacks.demo_classify_images(classifier, example_train_images, class_labels)),
+    callbacks.tb_log_image(tb_writer, "valid_images",
+                           callbacks.demo_classify_images(classifier, example_valid_images, class_labels)),
     callbacks.tb_epoch_log_metrics(tb_writer),
-    callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset),
-    ])
-classifier = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=mnist), layer_categorical.IndependentCategorical(event_shape=[], num_classes=10))
+    callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset)]
+if ns.images_folder is not None:
+    epoch_end_callbacks.append(
+        callbacks.file_log_image(ns.images_folder,"train",
+            callbacks.demo_classify_images(classifier, example_train_images, class_labels)))
+    epoch_end_callbacks.append(
+        callbacks.file_log_image(ns.images_folder,"valid",
+            callbacks.demo_classify_images(classifier, example_valid_images, class_labels)))
 train.train(classifier, train_dataset, train.classifier_objective,
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
-    epoch_end_callback=epoch_end_callbacks, dummy_run=ns.dummy_run)
+    epoch_end_callback=callbacks.callback_compose(epoch_end_callbacks), dummy_run=ns.dummy_run)
