@@ -13,8 +13,8 @@ Layer objects follow the design principles of the TensorFlow Probability Layers 
 To train an mnist classifier:
 
 ```
-digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_categorical.Categorical())
-train.train(classifier, train_dataset, train.classifier_objective)
+digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True), layer_independent_categorical.IndependentCategorical(event_shape=[]))
+train.train(classifier, train_dataset, train.layer_objective)
 ```
 
 
@@ -33,7 +33,7 @@ These ideas come from the TensorFlow Probability package.
 The MNIST classifier example above was built by:
 ```
 digit_recognizer = torch.nn.Sequential(classifier_net.ClassifierNet(mnist=True),
-    layer_categorical.Categorical())
+    layer_independent_categorical.IndependentCategorical(event_shape=[]))
 ```
 but it could also have been built as:
 ```
