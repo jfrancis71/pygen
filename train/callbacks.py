@@ -103,28 +103,25 @@ def demo_classify_images(classifier, images, categories):
     return _fn
 
 
-def demo_conditional_images(trainable, num_labels, num_samples=2):
-    """Produces a num_labels x num_samples grid of images where each row is an image generated conditioned on
-       the corresponding class label, and there are two examples per row.
-       Suitable for trainables that are Layer objects accepting a one hot vector
-       and returning a probability distribution over an image.
-       eg a trainable accepting one hot vector with position 2 = 1, returning 1x28x28 probability distributions
-       over digit 2.
+def demo_conditional_images(trainable, conditionals, num_samples=2):
+    """Samples a layer type trainable using the input conditionals.
+
+       Samples each conditional num_samples times and returns an image with the results assembled in a grid.
+       Suitable for, e.g., generating MNIST images conditioned on knowing the digit class.
 
     Args:
-        tb_writer: SummaryWriter to write to.
-        tb_name: string to write to.
-        num_labels: number of class labels.
+        trainable: a layer type object accepting an input and returning a probability distribution over images.
+        num_samples: number of samples for each conditional
+        conditionals: tensor describing the inputs to the trainable.
 
     Examples:
         >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
-        >>> image_demo_fn = demo_conditional_images(trainable, 10, 2)
+        >>> image_demo_fn = demo_conditional_images(trainable, torch.eye(10), 2)
         >>> len(image_demo_fn())
         3
     """
     def _fn():
-        identity = torch.eye(num_labels)
-        images = trainable(identity).sample([num_samples])
+        images = trainable(conditionals).sample([num_samples])
         imglist = images.permute([1, 0, 2, 3, 4]).flatten(end_dim=1)  # Transpose the sample and batch dims
         grid_image = make_grid(imglist, padding=10, nrow=num_samples, value_range=(0.0, 1.0))
         return grid_image
@@ -166,7 +163,7 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     Examples:
         >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
         >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
-        >>> trainer_state.batch_objective_fn = train.classifier_objective
+        >>> trainer_state.batch_objective_fn = train.layer_objective()
         >>> trainer_state.epoch_num = 0
         >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
         >>> dataset = torch.utils.data.StackDataset(images, labels)

@@ -16,6 +16,7 @@ import torch.nn as nn
 import pygen.layers.independent_categorical as layer_categorical
 
 
+# Need as ToTensor in transforms ignores the global default device option.
 class DevicePlacement:
     def __call__(self, x):
         return x.to(torch.get_default_device())
@@ -30,35 +31,26 @@ def rm_scheduler(epoch):
     return 1 / math.sqrt(1 + epoch)
 
 
-def classifier_objective(trainable, batch):
-    """Computes trainable(batch[0]).log_prob(batch[1])
-    returning a tuple of this as 1st element,
-    2nd element is metrics containing log_prob and accuracy."""
-    distribution = trainable(batch[0])
-    log_prob_mean = (distribution.log_prob(batch[1])).mean()
-    accuracy = (distribution.sample() == batch[1]).float().mean()
-    return log_prob_mean, np.array(
-        (log_prob_mean.cpu().detach().numpy(), accuracy.cpu().detach().numpy()),
-        dtype=[('log_prob', 'float32'), ('accuracy', 'float32')])
-
-
-def layer_objective(reverse_inputs=False, num_classes=None):
+def layer_objective(reverse_inputs=False, track_accuracy=False):
     """Computes trainable(batch[0]).log_prob(batch[1]) (reversed order if reverse_inputs is True)
     returns this as the 1st element of a tuple, second element is metrics containing the same.
-    The input to the trainable will be one'hotified if num_classes is not None.
     trainable is a layer object taking a tensor and returning a distribution.
     """
-    def lambda_layer_objective(trainable, batch):
+    def _fn(trainable, batch):
         if reverse_inputs is False:
             conditional, value = batch[0], batch[1]
         else:
             conditional, value = batch[1], batch[0]
-        if num_classes is not None:
-            conditional = torch.nn.functional.one_hot(conditional, num_classes).float()
         distribution = trainable(conditional)
         log_prob_mean = (distribution.log_prob(value)).mean()
-        return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
-    return lambda_layer_objective
+        if track_accuracy:
+            accuracy = (distribution.sample() == value).float().mean()
+            return log_prob_mean, np.array(
+                (log_prob_mean.cpu().detach().numpy(), accuracy.cpu().detach().numpy()),
+                dtype=[('log_prob', 'float32'), ('accuracy', 'float32')])
+        else:
+            return log_prob_mean, np.array((log_prob_mean.cpu().detach().numpy()), dtype=[('log_prob', 'float32')])
+    return _fn
 
 
 class TrainerState:

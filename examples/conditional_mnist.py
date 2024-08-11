@@ -11,6 +11,7 @@ import torchvision.datasets as datasets
 from pygen.train import train
 from pygen.train import callbacks
 import pygen.layers.independent_bernoulli as bernoulli_layer
+import pygen.layers.one_hot as one_hot
 
 
 parser = argparse.ArgumentParser(description='PyGen Conditional MNIST PixelCNN')
@@ -27,17 +28,19 @@ dataset = datasets.MNIST(ns.datasets_folder, train=True, download=False, transfo
 train_dataset, validation_dataset = random_split(dataset, [50000, 10000],
     generator=torch.Generator(device=torch.get_default_device()))
 tb_writer = SummaryWriter(ns.tb_folder)
-conditional_digit_distribution = nn.Sequential(nn.Linear(10, 1*28*28),
+conditional_digit_distribution = nn.Sequential(
+    one_hot.OneHot(10),
+    nn.Linear(10, 1*28*28),
     bernoulli_layer.IndependentBernoulli(event_shape=[1, 28, 28]))
 epoch_end_callbacks = [
     callbacks.tb_log_image(tb_writer, "train_images",
-        callbacks.demo_conditional_images(conditional_digit_distribution, 10, 2)),
+        callbacks.demo_conditional_images(conditional_digit_distribution, torch.arange(10), 2)),
     callbacks.tb_epoch_log_metrics(tb_writer),
     callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset)]
 if ns.images_folder is not None:
     epoch_end_callbacks.append(
         callbacks.file_log_image(ns.images_folder,"train",
             callbacks.demo_conditional_images(conditional_digit_distribution, 10, 2)))
-train.train(conditional_digit_distribution, train_dataset, train.layer_objective(reverse_inputs=True, num_classes=10),
+train.train(conditional_digit_distribution, train_dataset, train.layer_objective(reverse_inputs=True),
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
     epoch_end_callback=callbacks.callback_compose(epoch_end_callbacks), dummy_run=ns.dummy_run)
