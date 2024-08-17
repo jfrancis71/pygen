@@ -3,6 +3,7 @@ Defines IndependentCategorical layer.
 """
 
 
+import math
 import torch
 
 
@@ -23,6 +24,9 @@ class IndependentCategorical(torch.nn.Module):
         super().__init__()
         self.event_shape = event_shape
         self.num_classes = num_classes
+
+    def params_size(self):
+        return math.prod(self.event_shape)*self.num_classes
 
     def forward(self, logits):
         batch_shape = list(logits.shape[:-1])
