@@ -176,7 +176,8 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
         dataset_iter = iter(dataloader)
         metrics_history = []
         for batch in dataset_iter:
-            log_prob, batch_metrics = trainer_state.batch_objective_fn(trainer_state.trainable, batch)
+            with torch.no_grad():
+                log_prob, batch_metrics = trainer_state.batch_objective_fn(trainer_state.trainable, batch)
             metrics_history.append(batch_metrics)
         metrics_epoch = reduce_metrics_history(metrics_history)
         tb_log_metrics(tb_writer, tb_name + "_epoch", metrics_epoch, trainer_state.epoch_num)
