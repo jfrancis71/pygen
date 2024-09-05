@@ -1,6 +1,8 @@
 # pygen
 Provides a training loop for PyTorch, plus some distribution and layer objects and callbacks for monitoring the training session.
 
+Current Status: 05/09/2024, This is a personal project (you are welcome to use if you find it useful). It is not very mature, it seems to presently be useful for training basic machine learning models. Known Limitations: I have not needed so far to do much in the way of customising optimizers and schedulers so this functionality is probably not well thought through at the moment.
+
 pygen supports training either a Distribution object or a layer object. A distribution object is an object with log_prob and sample methods. A layer object is (generally) a nn.Module, but instead of accepting a tensor and returning a tensor, it accepts a tensor and returns a probability distribution.
 
 Distribution objects follow the PyTorch Distributions (https://pytorch.org/docs/stable/distributions.html) conventions which were in turn were based on the TensorFlow Probability Distributions package (https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Distribution)
