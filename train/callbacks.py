@@ -16,9 +16,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from torchvision.utils import save_image
-import pygen.layers.independent_categorical as independent_categorical
-import pygen.layers.independent_bernoulli as layers_bernoulli
-import pygen.train.train as train
 
 
 def file_log_image(folder, filename, make_image_fn):
@@ -88,6 +85,7 @@ def demo_classify_images(classifier, images, categories):
         categories: a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
 
     Example:
+        >>> import pygen.layers.independent_categorical as independent_categorical
         >>> images = torch.ones([25, 1, 5, 5])
         >>> dataset_class_labels = [str(category) for category in range(10)]
         >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
@@ -115,6 +113,7 @@ def demo_conditional_images(trainable, conditionals, num_samples=2):
         conditionals: tensor describing the inputs to the trainable.
 
     Examples:
+        >>> import pygen.layers.independent_bernoulli as layers_bernoulli
         >>> trainable = nn.Sequential(nn.Linear(10, 1*8*8), layers_bernoulli.IndependentBernoulli(event_shape=[1, 8, 8]))
         >>> image_demo_fn = demo_conditional_images(trainable, torch.eye(10), 2)
         >>> len(image_demo_fn())
@@ -161,6 +160,8 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     """Runs the trainable over a dataset (eg validation) and logs the resulting metrics.
 
     Examples:
+        >>> import pygen.train.train as train
+        >>> import pygen.layers.independent_categorical as independent_categorical
         >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
         >>> trainer_state = type('TrainerState', (object,), {'trainable': trainable})()
         >>> trainer_state.batch_objective_fn = train.layer_objective()
