@@ -13,7 +13,6 @@ import numpy as np
 import torch
 import torch.optim.lr_scheduler
 import torch.nn as nn
-import pygen.layers.independent_categorical as layer_categorical
 
 
 # Need as ToTensor in transforms ignores the global default device option.
@@ -69,10 +68,11 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
     """trains a trainable.
 
     Examples:
-        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layer_categorical.IndependentCategorical(event_size=[]))
+        >>> import pygen.layers.independent_categorical as layer_categorical
+        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), layer_categorical.IndependentCategorical(event_shape=[], num_classes=10))
         >>> images, labels = (torch.rand([64, 1, 5, 5]), torch.randint(0, 10, [64]))
         >>> dataset = torch.utils.data.StackDataset(images, labels)
-        >>> train(trainable, dataset, classifier_objective, max_epoch=1)
+        >>> train(trainable, dataset, layer_objective(), max_epoch=1)
         Epoch: 0
     """
     trainer_state = TrainerState()
