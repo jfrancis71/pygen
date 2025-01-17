@@ -18,16 +18,13 @@ from torchvision.utils import make_grid
 from torchvision.utils import save_image
 
 
-def file_log_image(folder, filename, make_image_fn):
+def log_image_cb(make_image_fn, tb_writer=None, folder=None, name=None):
     def _fn(trainer_state):
         image = make_image_fn()
-        save_image(image, folder + "/" + filename + "_" + str(trainer_state.epoch_num) + ".png")
-    return _fn
-
-def tb_log_image(tb_writer, tb_name, make_image_fn):
-    def _fn(trainer_state):
-        image = make_image_fn()
-        tb_writer.add_image(tb_name, image, trainer_state.epoch_num)
+        if tb_writer is not None:
+            tb_writer.add_image(name, image, trainer_state.epoch_num)
+        if folder is not None:
+            save_image(image, folder + "/" + name + "_" + str(trainer_state.epoch_num) + ".png")
     return _fn
 
 
