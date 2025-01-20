@@ -64,7 +64,7 @@ class TrainerState:
 
 
 def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, batch_end_callback=None,
-          epoch_end_callback=None, use_scheduler=False, dummy_run=False, model_path=None, epoch_regularizer=False):
+          epoch_end_callback=None, optimizer=None, scheduler=None, dummy_run=False, model_path=None, epoch_regularizer=False):
     """trains a trainable.
 
     Examples:
@@ -81,11 +81,14 @@ def train(trainable, dataset, batch_objective_fn, batch_size=32, max_epoch=10, b
     dataloader = torch.utils.data.DataLoader(dataset,
         batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
         drop_last=True)
-    opt = torch.optim.Adam(trainable.parameters(), maximize=True, lr=.001)
-    if use_scheduler:
-        scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler)
+    if optimizer is None:
+        opt = torch.optim.Adam(trainable.parameters(), maximize=True, lr=.001)
+        if scheduler is not None:
+            raise RuntimeError("Cannot pass in a scheduler without an optimizer. \
+            The scheduler needs to know what optimizer it is scheduling for.")
     else:
-        scheduler = None
+        opt = optimizer
+#   scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=rm_scheduler)
     trainer_state.batch_num = 0
     trainer_state.trainable = trainable
     trainer_state.batch_objective_fn = batch_objective_fn
