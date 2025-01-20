@@ -55,4 +55,5 @@ epoch_end_callbacks = [
     callbacks.tb_log_gradients(tb_writer)]
 train.train(classifier, train_dataset, train.layer_objective(track_accuracy=True),
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
-    epoch_end_callback=callbacks.callback_compose(epoch_end_callbacks), dummy_run=ns.dummy_run)
+    epoch_end_callback=callbacks.callback_compose(epoch_end_callbacks),
+    dummy_run=ns.dummy_run, max_epoch=ns.max_epoch)
