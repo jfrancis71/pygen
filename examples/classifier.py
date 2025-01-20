@@ -51,7 +51,8 @@ epoch_end_callbacks = [
     callbacks.log_image_cb(callbacks.demo_classify_images(classifier, example_valid_images, dataset.classes),
                            tb_writer=tb_writer, folder=ns.images_folder, name="valid_images"),
     callbacks.tb_epoch_log_metrics(tb_writer),
-    callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset)]
+    callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset),
+    callbacks.tb_log_gradients(tb_writer)]
 train.train(classifier, train_dataset, train.layer_objective(track_accuracy=True),
     batch_end_callback=callbacks.tb_batch_log_metrics(tb_writer),
     epoch_end_callback=callbacks.callback_compose(epoch_end_callbacks), dummy_run=ns.dummy_run)

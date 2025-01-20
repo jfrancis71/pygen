@@ -182,6 +182,13 @@ def tb_dataset_metrics_logging(tb_writer, tb_name, dataset, batch_size=32):
     return _fn
 
 
+def tb_log_gradients(tb_writer):
+    def _fn(trainer_state):
+        for name, layer in trainer_state.trainable.named_parameters():
+            tb_writer.add_histogram(name + "_grad", layer.grad.cpu(), trainer_state.epoch_num)
+    return _fn
+
+
 def callback_compose(list_callbacks):
     """Strings a list of callbacks into one callback so you can have multiple callbacks
        for eg an epoch end callback.
