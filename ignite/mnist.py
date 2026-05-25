@@ -13,9 +13,9 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
 from ignite.metrics import Accuracy, Loss
 from ignite.utils import setup_logger
-from train import callbacks
-from neural_nets import classifier_net
-import layers.independent_categorical as layer_categorical
+from pygen.train import callbacks
+from pygen.neural_nets import classifier_net
+import pygen.layers.independent_categorical as layer_categorical
 
 
 parser = argparse.ArgumentParser()
