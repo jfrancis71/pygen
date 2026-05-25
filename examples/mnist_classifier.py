@@ -1,3 +1,6 @@
+# Preamble
+#
+
 import argparse
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -25,7 +28,6 @@ data_split = [55000, 5000]
 train_dataset, validation_dataset = random_split(dataset, data_split,
     generator=torch.Generator(device=torch.get_default_device()))
 # Grab some example images to use in the tensorboard example classifications callback.
-example_train_images = next(iter(torch.utils.data.DataLoader(train_dataset, batch_size=25)))[0]
 example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset, batch_size=25)))[0]
 tb_writer = SummaryWriter(ns.tb_folder)
 classifier = torch.nn.Sequential(
@@ -33,8 +35,6 @@ classifier = torch.nn.Sequential(
     layer_categorical.IndependentCategorical(event_shape=[], num_classes=10)
 )
 epoch_end_callbacks = [
-    callbacks.log_image_cb(callbacks.demo_classify_images(classifier, example_train_images, dataset.classes),
-                           tb_writer=tb_writer, folder=ns.images_folder, name="train_images"),
     callbacks.log_image_cb(callbacks.demo_classify_images(classifier, example_valid_images, dataset.classes),
                            tb_writer=tb_writer, folder=ns.images_folder, name="valid_images"),
     callbacks.tb_epoch_log_metrics(tb_writer),
