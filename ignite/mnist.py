@@ -28,8 +28,7 @@ args = parser.parse_args()
 transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
 dataset = datasets.MNIST(args.datasets_folder, train=True, download=True, transform=transform)
 data_split = [55000, 5000]
-train_dataset, validation_dataset = random_split(dataset, data_split,
-    generator=torch.Generator(device=torch.get_default_device()))
+train_dataset, validation_dataset = random_split(dataset, data_split)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
 model = nn.Sequential(classifier_net.ClassifierNet(mnist=True), nn.LogSoftmax(dim=-1))
@@ -42,7 +41,7 @@ trainer.logger = setup_logger("trainer")
 val_metrics = {"accuracy": Accuracy(), "nll": Loss(criterion)}
 evaluator = create_supervised_evaluator(model, metrics=val_metrics, device=args.device)
 evaluator.logger = setup_logger("evaluator")
-example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset, batch_size=25)))[0]
+example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset, batch_size=25)))[0].to(args.device)
 tb_writer = SummaryWriter(args.tb_folder)
 classifier = torch.nn.Sequential(
     model,
