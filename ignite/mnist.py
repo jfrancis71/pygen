@@ -31,10 +31,10 @@ data_split = [55000, 5000]
 train_dataset, validation_dataset = random_split(dataset, data_split)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
-model = nn.Sequential(classifier_net.ClassifierNet(mnist=True), nn.LogSoftmax(dim=-1))
+model = classifier_net.ClassifierNet(mnist=True)
 model.to(args.device)  # Move model before creating optimizer
 optimizer = SGD(model.parameters(), lr=.001)
-criterion = nn.NLLLoss()
+criterion = nn.CrossEntropyLoss()
 trainer = create_supervised_trainer(model, optimizer, criterion, device=args.device)
 trainer.logger = setup_logger("trainer")
 
