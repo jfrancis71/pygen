@@ -77,21 +77,13 @@ def demo_classify_images(classifier, images, categories):
     """Classify images using the trainable and tensorboard log the result organised in a 5x5 grid.
 
     Args:
-        classifier: nn.Module accepting a tensor and returning a categorical distribution.
+        classifier: nn.Module accepting a tensor and returning logits of category
+            distribution.
         images: a tensor of batch size 25.
         categories: a list of the dataset categories, eg for CIFAR-10 ["aeroplane", "car", ...]
-
-    Example:
-        >>> import pygen.layers.independent_categorical as independent_categorical
-        >>> images = torch.ones([25, 1, 5, 5])
-        >>> dataset_class_labels = [str(category) for category in range(10)]
-        >>> trainable = nn.Sequential(nn.Flatten(), nn.Linear(1*5*5, 10), independent_categorical.IndependentCategorical(event_shape=[], num_classes=10))
-        >>> image_demo_fn = demo_classify_images(trainable, images, dataset_class_labels)
-        >>> len(image_demo_fn())
-        3
     """
     def _fn():
-        label_indices = classifier(images).sample()
+        label_indices = torch.distributions.Categorical(logits=classifier(images)).sample()
         labels = [categories[idx.to("cpu").item()] for idx in label_indices]
         labelled_images = make_labelled_images_grid(images, labels)
         return labelled_images

@@ -3,7 +3,6 @@
 
 import argparse
 import torch
-from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -33,7 +32,7 @@ val_loader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
 model = classifier_net.ClassifierNet(mnist=True)
 model.to(args.device)  # Move model before creating optimizer
 optimizer = Adam(model.parameters(), lr=.001)
-criterion = nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss()
 trainer = create_supervised_trainer(model, optimizer, criterion, device=args.device)
 trainer.logger = setup_logger("trainer")
 val_metrics = {"accuracy": Accuracy(), "nll": Loss(criterion)}
@@ -42,10 +41,6 @@ evaluator.logger = setup_logger("evaluator")
 example_valid_images = next(iter(torch.utils.data.DataLoader(validation_dataset,
     batch_size=25)))[0].to(args.device)
 tb_writer = SummaryWriter(args.tb_folder)
-classifier = torch.nn.Sequential(
-    model,
-    layer_categorical.IndependentCategorical(event_shape=[], num_classes=10)
-)
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_results(engine):
@@ -59,7 +54,7 @@ def log_results(engine):
     tb_writer.add_scalar("validation/avg_accuracy", metrics["accuracy"],
         engine.state.epoch)
     tb_writer.add_scalar("validation/avg_loss", metrics["nll"], engine.state.epoch)
-    image = callbacks.demo_classify_images(classifier, example_valid_images,
+    image = callbacks.demo_classify_images(model, example_valid_images,
         dataset.classes)()
     if tb_writer is not None:
         tb_writer.add_image("valid_images", image, engine.state.epoch)

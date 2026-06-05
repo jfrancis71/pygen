@@ -37,7 +37,7 @@ classifier = torch.nn.Sequential(
 epoch_end_callbacks = [
     callbacks.log_image_cb(
         callbacks.demo_classify_images(
-            classifier, example_valid_images, dataset.classes),
+            classifier[0], example_valid_images, dataset.classes),
         tb_writer=tb_writer, folder=args.images_folder, name="valid_images"),
     callbacks.tb_epoch_log_metrics(tb_writer),
     callbacks.tb_dataset_metrics_logging(tb_writer, "validation", validation_dataset)
