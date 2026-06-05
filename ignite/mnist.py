@@ -19,6 +19,7 @@ import pygen.layers.independent_categorical as layer_categorical
 parser = argparse.ArgumentParser()
 parser.add_argument("--datasets_folder", default="~/datasets")
 parser.add_argument("--tb_folder", default=None)
+parser.add_argument("--images_folder", default=None)
 parser.add_argument("--device", default="cpu")
 parser.add_argument("--max_epoch", type=int, default=10, help="number of epochs to train (default: 10)")
 args = parser.parse_args()
@@ -54,9 +55,12 @@ def log_results(engine):
     tb_writer.add_scalar("validation/avg_accuracy", metrics["accuracy"],
         engine.state.epoch)
     tb_writer.add_scalar("validation/avg_loss", metrics["nll"], engine.state.epoch)
-    image = callbacks.demo_classify_images(model, example_valid_images,
-        dataset.classes)()
-    if tb_writer is not None:
-        tb_writer.add_image("valid_images", image, engine.state.epoch)
+    trainer_state = Warning() # bit of a hack here.
+    trainer_state.epoch_num = engine.state.epoch
+    callbacks.log_image_cb(
+        callbacks.demo_classify_images(
+            model, example_valid_images, dataset.classes),
+        tb_writer=tb_writer, folder=args.images_folder, name="valid_images")(
+            trainer_state)
 
 trainer.run(train_loader, max_epochs=args.max_epoch)
